@@ -40,8 +40,8 @@ unsigned int TCPConnection::socket_fd() const {
     return socket_fd_;
 }
 
-std::shared_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
-    std::shared_ptr<Message> message;
+std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
+    std::unique_ptr<Message> message;
     message = std::make_unique<Message>(buffer_capacity);
     auto message_length = recvfrom(this->socket_fd(),
                                    (void*) message->data(),
@@ -51,7 +51,7 @@ std::shared_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
                                    this->address_length_ptr());
     message->set_length(message_length);
     message->put_data(message_length, 0);
-    return message_length == 0 ? nullptr : message;
+    return message_length == 0 ? nullptr : std::move(message);
 }
 
 bool TCPConnection::SendMessage(std::string message_data) {

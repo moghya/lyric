@@ -8,11 +8,12 @@ const unsigned int PORT = 8080;
 const unsigned int STORE_CAPACITY = 1000;
 
 int main() {
-    std::shared_ptr<KeyValueStoreApp> app = std::make_shared<KeyValueStoreApp>(
-      "my-key-value-store",
-      STORE_CAPACITY,
-      KeyValueStoreApp::EvictionPolicy::kFIFO);
-    auto server = std::make_shared<TCPServer>(app, PORT);
+    auto app = std::make_unique<KeyValueStoreApp>(
+            "my-key-value-store",
+            STORE_CAPACITY,
+      KeyValueStoreApp::EvictionPolicy::kFIFO
+    );
+    auto server = std::make_unique<TCPServer>(std::move(app), PORT);
     server->StartListening();
     return 0;
 }

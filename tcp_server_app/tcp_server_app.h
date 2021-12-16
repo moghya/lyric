@@ -13,7 +13,8 @@
  * */
 class TCPServerApp {
 public:
-    TCPServerApp(std::string name) : name_(name) {}
+    TCPServerApp(std::string name);
+    virtual ~TCPServerApp() = 0;
     std::string Name() const {
         return name_;
     }
