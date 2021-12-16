@@ -58,7 +58,7 @@ public:
     std::string GetEntry(std::string key);
 
     ACTION_ON_CONNECTION HandleMessage(
-        std::shared_ptr<Message> message) override;
+        std::shared_ptr<TCPMessage> message) override;
 
     bool IsOn() override {
       return true;

@@ -72,8 +72,8 @@ void TCPServer::AcceptConnections() {
       AcceptConnection();
     }
 
-    std::set<std::shared_ptr<ClientConnection>> readable_clients;
-    // Check all active client sockets if message is available
+    std::set<std::shared_ptr<TCPConnection>> readable_clients;
+    // Check all active sender sockets if message is available
     active_clients_map_lock_.lock();
     for(auto client_entry : active_clients_map_) {
       if (FD_ISSET(client_entry.first, &read_fd_set)) {
@@ -83,7 +83,7 @@ void TCPServer::AcceptConnections() {
     active_clients_map_lock_.unlock();
 
     for (auto client : readable_clients) {
-      PRINT_THREAD_ID std::cout << "Found readable client socket fd: "
+      PRINT_THREAD_ID std::cout << "Found readable sender socket fd: "
                                 << client->socket_fd() << std::endl;
       AcceptMessage(std::move(client));
     }
@@ -95,7 +95,7 @@ void TCPServer::PopulateReadFdSet(fd_set& read_fd_set) {
   // Add server_socket_fd_ to accept new connections.
   FD_SET(server_socket_fd_, &read_fd_set);
 
-  // Add all the active client sockets for getting messages.
+  // Add all the active sender sockets for getting messages.
   active_clients_map_lock_.lock();
   for(auto client_entry : active_clients_map_) {
     FD_SET(client_entry.first, &read_fd_set);
@@ -103,7 +103,7 @@ void TCPServer::PopulateReadFdSet(fd_set& read_fd_set) {
   active_clients_map_lock_.unlock();
 }
 
-void TCPServer::AcceptMessage(std::shared_ptr<ClientConnection> client) {
+void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client) {
   std::function<void()> message_handler =
   [this, client = std::move(client)]() {
     HandleMessage(std::move(GetMessage(std::move(client))));
@@ -111,15 +111,15 @@ void TCPServer::AcceptMessage(std::shared_ptr<ClientConnection> client) {
   SpawnThread(std::move(message_handler));
 }
 
-std::shared_ptr<ClientConnection> TCPServer::AcceptConnection() {
+std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
   PRINT_THREAD_ID std::cout << "Accepting new connection" << std::endl;
-  auto client = std::make_shared<ClientConnection>();
-  // Initialize client address struct and accept new connection
+  auto client = std::make_shared<TCPConnection>();
+  // Initialize sender address struct and accept new connection
   unsigned int client_socket_fd = accept(server_socket_fd_,
                                          client->address(),
                                          client->address_length_ptr());
   if (client_socket_fd == -1) {
-    PRINT_THREAD_ID std::cout << "Invalid client socket fd" << std::endl;
+    PRINT_THREAD_ID std::cout << "Invalid sender socket fd" << std::endl;
     return nullptr;
   }
   AddToActiveClient(client_socket_fd, client);
@@ -137,11 +137,11 @@ void TCPServer::SpawnThread(std::function<void()> cb, bool join_thread) {
   }
 }
 
-std::shared_ptr<Message> TCPServer::GetMessage(
-    std::shared_ptr<ClientConnection> client) {
+std::shared_ptr<TCPMessage> TCPServer::GetMessage(
+    std::shared_ptr<TCPConnection> client) {
   if (client == nullptr) return nullptr;
-  auto message = std::make_shared<Message>(client,
-                                           app_->GetMessageBufferCapacity());
+  auto message = std::make_shared<TCPMessage>(client,
+                                              app_->GetMessageBufferCapacity());
   size_t message_length = ReceiveMessage(message);
   if(message_length <= 0) {
     RemoveFromActiveClients(client);
@@ -152,18 +152,18 @@ std::shared_ptr<Message> TCPServer::GetMessage(
   return message;
 }
 
-void TCPServer::HandleMessage(std::shared_ptr<Message> message) {
+void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> message) {
   if (message == nullptr) return;
   try {
     PRINT_THREAD_ID std::cout << "Client message: "
-                              << message->client()->socket_fd() << std::endl;
-    PRINT_THREAD_ID std::cout << "Message: "
+                              << message->sender()->socket_fd() << std::endl;
+    PRINT_THREAD_ID std::cout << "TCPMessage: "
                               << message->data_str() << std::endl;
     auto action_to_take = app_->HandleMessage(message);
     if (action_to_take == ACTION_ON_CONNECTION::CLOSE) {
-      PRINT_THREAD_ID std::cout << "Closing client: "
-                                << message->client()->socket_fd() << std::endl;
-      RemoveFromActiveClients(message->client());
+      PRINT_THREAD_ID std::cout << "Closing sender: "
+                                << message->sender()->socket_fd() << std::endl;
+      RemoveFromActiveClients(message->sender());
     }
   } catch(std::exception exp) {
     std::cerr << "failed to execute [OnMessage] function";

@@ -34,22 +34,22 @@ public:
 protected:
     bool BindAndListen();
     void AcceptConnections();
-    std::shared_ptr<ClientConnection> AcceptConnection();
+    std::shared_ptr<TCPConnection> AcceptConnection();
     void PopulateReadFdSet(fd_set& read_fd_set);
-    void AcceptMessage(std::shared_ptr<ClientConnection> client);
-    std::shared_ptr<Message> GetMessage(std::shared_ptr<ClientConnection>
+    void AcceptMessage(std::shared_ptr<TCPConnection> client);
+    std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection>
                                         client);
-    void HandleMessage(std::shared_ptr<Message> message);
+    void HandleMessage(std::shared_ptr<TCPMessage> message);
     void SpawnThread(std::function<void()> cb, bool join_thread = true);
 
 private:
   void AddToActiveClient(unsigned int client_socket_fd,
-                         std::shared_ptr<ClientConnection> client) {
+                         std::shared_ptr<TCPConnection> client) {
     client->set_socket_fd(client_socket_fd);
     active_clients_map_.insert({client_socket_fd, client});
   }
 
-  void RemoveFromActiveClients(std::shared_ptr<ClientConnection> client) {
+  void RemoveFromActiveClients(std::shared_ptr<TCPConnection> client) {
     close(client->socket_fd());
     active_clients_map_lock_.lock();
     active_clients_map_.erase(client->socket_fd());
@@ -64,10 +64,10 @@ private:
   struct sockaddr_in server_address_;
   unsigned int server_socket_fd_;
 
-  // Client socket_fd to ClientConnection map.
+  // Client socket_fd to TCPConnection map.
   // TODO(sawant) : Prune this to avoid memory leak due to abruptly closed
   //  connections by client.
-  std::unordered_map<unsigned int, std::shared_ptr<ClientConnection>>
+  std::unordered_map<unsigned int, std::shared_ptr<TCPConnection>>
       active_clients_map_;
   std::mutex active_clients_map_lock_;
 

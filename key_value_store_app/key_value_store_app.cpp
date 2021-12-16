@@ -13,8 +13,8 @@
 #include "key_value_store_app.h"
 
 ACTION_ON_CONNECTION  KeyValueStoreApp::HandleMessage(
-    std::shared_ptr<Message> message) {
-  PRINT_THREAD_ID std::cout << Name() << ":: Message " << message->data_str()
+    std::shared_ptr<TCPMessage> message) {
+  PRINT_THREAD_ID std::cout << Name() << ":: TCPMessage " << message->data_str()
                             << std::endl;
   Command command = ParseMessage(message->data());
   switch (command.type) {
