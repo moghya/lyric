@@ -6,9 +6,11 @@
 
 #include "tcp_message.h"
 
-TCPMessage::TCPMessage(std::shared_ptr<TCPConnection> sender,
-                       size_t buffer_capacity) :
+TCPMessage::TCPMessage(size_t buffer_capacity,
+                       std::shared_ptr<TCPConnection> sender,
+                       std::shared_ptr<TCPConnection> receiver) :
         sender_(sender),
+        receiver_(receiver),
         buffer_capacity_(buffer_capacity),
         length_(buffer_capacity_) {
     data_ = new char[buffer_capacity_];
@@ -18,7 +20,7 @@ TCPMessage::~TCPMessage() {
     delete data_;
 }
 
-std::shared_ptr<TCPConnection> TCPMessage::sender() const {
+const std::shared_ptr<TCPConnection>& TCPMessage::sender() const {
     return sender_;
 }
 
@@ -51,4 +53,14 @@ size_t TCPMessage::buffer_capacity() const {
 void TCPMessage::set_data(std::string data) {
     strcpy(data_, data.c_str());
     length_ = data.length();
+}
+
+const std::shared_ptr<TCPConnection>& TCPMessage::receiver() const {
+    return receiver_;
+}
+
+
+void TCPMessage::AppendNewLine() {
+    this->put_data(this->length(),'\n');
+    this->set_length(this->length()+1);
 }

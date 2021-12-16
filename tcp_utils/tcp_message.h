@@ -20,10 +20,12 @@ class TCPConnection;
  * */
 class TCPMessage {
 public:
-    TCPMessage(std::shared_ptr<TCPConnection> sender,
-               size_t buffer_capacity);
+    TCPMessage(size_t buffer_capacity,
+               std::shared_ptr<TCPConnection> sender,
+               std::shared_ptr<TCPConnection> receiver);
     ~TCPMessage();
-    std::shared_ptr<TCPConnection> sender() const;
+    const std::shared_ptr<TCPConnection>& sender() const;
+    const std::shared_ptr<TCPConnection>& receiver() const;
     char* data() const;
     void put_data(unsigned int index, char c);
     void set_data(std::string data);
@@ -31,9 +33,13 @@ public:
     void set_length(size_t length);
     size_t length() const;
     size_t buffer_capacity() const;
+    void AppendNewLine();
 
 private:
     std::shared_ptr<TCPConnection> sender_;
+    std::shared_ptr<TCPConnection> receiver_;
+
+private:
     size_t buffer_capacity_;
     size_t length_;
     char* data_;
