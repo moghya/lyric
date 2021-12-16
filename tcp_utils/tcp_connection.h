@@ -9,6 +9,10 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include "message.h"
+
+class Message;
+
 /*
  * This class is a wrapper around tcp socket fd and socket address.
  * */
@@ -21,10 +25,16 @@ public:
     size_t address_length() const;
     void set_socket_fd(unsigned int sokect_fd);
     unsigned int socket_fd() const;
+    /*
+     * Following methods are wrapper around recvfrom and sendto methods.
+     * */
+    std::shared_ptr<Message> ReceiveMessage(size_t buffer_capacity);
+    bool SendMessage(std::string message_data);
 private:
     struct sockaddr* address_;
     socklen_t* address_length_;
     unsigned int socket_fd_;
+
 };
 
 

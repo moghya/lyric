@@ -37,8 +37,7 @@ protected:
     std::shared_ptr<TCPConnection> AcceptConnection();
     void PopulateReadFdSet(fd_set& read_fd_set);
     void AcceptMessage(std::shared_ptr<TCPConnection> client);
-    std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection>
-                                        client);
+    std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection> client);
     void HandleMessage(std::shared_ptr<TCPMessage> message);
     void SpawnThread(std::function<void()> cb, bool join_thread = true);
 

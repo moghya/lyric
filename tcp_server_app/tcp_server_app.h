@@ -23,7 +23,7 @@ public:
         return 512;
     }
     virtual ACTION_ON_CONNECTION HandleMessage(
-      std::shared_ptr<TCPMessage> message) = 0;
+            std::shared_ptr<TCPMessage> tcp_message) = 0;
 protected:
     std::string name_;
 };

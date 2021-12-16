@@ -106,7 +106,7 @@ void TCPServer::PopulateReadFdSet(fd_set& read_fd_set) {
 void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client) {
   std::function<void()> message_handler =
   [this, client = std::move(client)]() {
-    HandleMessage(std::move(GetMessage(std::move(client))));
+    HandleMessage(GetMessage(std::move(client)));
   };
   SpawnThread(std::move(message_handler));
 }
@@ -140,32 +140,28 @@ void TCPServer::SpawnThread(std::function<void()> cb, bool join_thread) {
 std::shared_ptr<TCPMessage> TCPServer::GetMessage(
     std::shared_ptr<TCPConnection> client) {
   if (client == nullptr) return nullptr;
-    std::shared_ptr<TCPMessage> message;
-    message = std::make_shared<TCPMessage>(app_->GetMessageBufferCapacity(),
-                                           client,
-                                           nullptr);
-  size_t message_length = ReceiveMessage(message);
-  if(message_length <= 0) {
-    RemoveFromActiveClients(client);
-    PRINT_THREAD_ID std::cout << "Connection lost: "
-                              << client->socket_fd() << std::endl;
-    return nullptr;
-  }
+  std::shared_ptr<TCPMessage> message;
+  message = make_shared<TCPMessage>(client,
+                                    client->ReceiveMessage(app_->GetMessageBufferCapacity()));
   return message;
 }
 
-void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> message) {
-  if (message == nullptr) return;
+void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
+  auto client = tcp_message->sender();
+  auto message = tcp_message->message();
+  if (message == nullptr) {
+      RemoveFromActiveClients(client);
+      PRINT_THREAD_ID std::cout << "Connection lost: " << client->socket_fd() << std::endl;
+      return;
+  }
+
   try {
-    PRINT_THREAD_ID std::cout << "Client message: "
-                              << message->sender()->socket_fd() << std::endl;
-    PRINT_THREAD_ID std::cout << "TCPMessage: "
-                              << message->data_str() << std::endl;
-    auto action_to_take = app_->HandleMessage(message);
+    PRINT_THREAD_ID std::cout << "Client message: " << client->socket_fd() << std::endl;
+    PRINT_THREAD_ID std::cout << "Message: " << message->data_str() << std::endl;
+    auto action_to_take = app_->HandleMessage(tcp_message);
     if (action_to_take == ACTION_ON_CONNECTION::CLOSE) {
-      PRINT_THREAD_ID std::cout << "Closing sender: "
-                                << message->sender()->socket_fd() << std::endl;
-      RemoveFromActiveClients(message->sender());
+      PRINT_THREAD_ID std::cout << "Closing sender: " << client->socket_fd() << std::endl;
+      RemoveFromActiveClients(client);
     }
   } catch(std::exception exp) {
     std::cerr << "failed to execute [OnMessage] function";

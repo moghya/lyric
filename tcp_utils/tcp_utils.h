@@ -14,9 +14,8 @@
 #include <thread>
 #include <unistd.h>
 
+#include "message.h"
 #include "tcp_connection.h"
-#include "tcp_message.h"
-
 
 
 #define PRINT_THREAD_ID do { \
@@ -31,10 +30,21 @@ enum ACTION_ON_CONNECTION {
     CLOSE,
 };
 
-/*
- * Following methods are wrapper around recvfrom and sendto methods.
- * */
-size_t ReceiveMessage(std::shared_ptr<TCPMessage> message);
-size_t SendMessage(std::shared_ptr<TCPMessage> message);
 
+class TCPMessage {
+public:
+    TCPMessage(std::shared_ptr<TCPConnection> sender,
+               std::shared_ptr<Message> message) :
+    sender_(sender),
+    message_(message) {}
+    const std::shared_ptr<TCPConnection>& sender() const {
+        return sender_;
+    }
+    const std::shared_ptr<Message>& message() const {
+        return message_;
+    }
+private:
+    std::shared_ptr<TCPConnection> sender_;
+    std::shared_ptr<Message> message_;
+};
 #endif // KEY_VALUE_STORE_TCP_UTILS_H
