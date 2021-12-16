@@ -3,3 +3,7 @@
 //
 
 #include "tcp_server_app.h"
+
+TCPServerApp::TCPServerApp(std::string name): name_(name) {}
+
+TCPServerApp::~TCPServerApp() {} // Keep compiler happy :)

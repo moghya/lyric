@@ -13,7 +13,7 @@
 
 
 TCPServer::TCPServer(
-    std::shared_ptr<TCPServerApp> app,
+    std::unique_ptr<TCPServerApp> app,
     unsigned int port,
     unsigned int backlog_queue_size) :
     app_(std::move(app)),
@@ -24,6 +24,9 @@ TCPServer::TCPServer(
   server_address_.sin_addr.s_addr = htonl(INADDR_ANY);
   server_address_.sin_port        = htons(port_);
   server_socket_fd_ = socket(AF_INET, SOCK_STREAM, 0);
+}
+
+TCPServer::~TCPServer() {
 }
 
 void TCPServer::StartListening() {
@@ -140,16 +143,14 @@ void TCPServer::SpawnThread(std::function<void()> cb, bool join_thread) {
 std::shared_ptr<TCPMessage> TCPServer::GetMessage(
     std::shared_ptr<TCPConnection> client) {
   if (client == nullptr) return nullptr;
-  std::shared_ptr<TCPMessage> message;
-  message = make_shared<TCPMessage>(client,
-                                    client->ReceiveMessage(app_->GetMessageBufferCapacity()));
-  return message;
+  auto message = std::move(client->ReceiveMessage(app_->GetMessageBufferCapacity()));
+  auto tcp_message = std::make_shared<TCPMessage>(client, std::move(message));
+  return tcp_message;
 }
 
 void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
   auto client = tcp_message->sender();
-  auto message = tcp_message->message();
-  if (message == nullptr) {
+  if (!tcp_message->message()) {
       RemoveFromActiveClients(client);
       PRINT_THREAD_ID std::cout << "Connection lost: " << client->socket_fd() << std::endl;
       return;
@@ -157,7 +158,7 @@ void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
 
   try {
     PRINT_THREAD_ID std::cout << "Client message: " << client->socket_fd() << std::endl;
-    PRINT_THREAD_ID std::cout << "Message: " << message->data_str() << std::endl;
+    PRINT_THREAD_ID std::cout << "Message: " << tcp_message->message()->data_str() << std::endl;
     auto action_to_take = app_->HandleMessage(tcp_message);
     if (action_to_take == ACTION_ON_CONNECTION::CLOSE) {
       PRINT_THREAD_ID std::cout << "Closing sender: " << client->socket_fd() << std::endl;

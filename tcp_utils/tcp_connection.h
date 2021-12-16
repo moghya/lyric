@@ -28,7 +28,7 @@ public:
     /*
      * Following methods are wrapper around recvfrom and sendto methods.
      * */
-    std::shared_ptr<Message> ReceiveMessage(size_t buffer_capacity);
+    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity);
     bool SendMessage(std::string message_data);
 private:
     struct sockaddr* address_;

@@ -58,3 +58,10 @@ void Message::AppendNewLine() {
     this->put_data(this->length(),'\n');
     this->set_length(this->length()+1);
 }
+
+Message::Message(Message&& message) {
+    this->length_ = message.length_;
+    this->buffer_capacity_ = message.buffer_capacity_;
+    this->data_ = message.data_;
+    message.data_ = nullptr;
+}

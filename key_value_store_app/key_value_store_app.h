@@ -30,11 +30,9 @@ public:
 
     KeyValueStoreApp(std::string name,
                      unsigned int store_capacity,
-                     EvictionPolicy eviction_policy) :
-                     TCPServerApp(name),
-                     store_capacity_(store_capacity),
-                     eviction_policy_(eviction_policy) {
-    }
+                     EvictionPolicy eviction_policy);
+
+    ~KeyValueStoreApp() override;
 
     class Command {
       public:
@@ -64,7 +62,6 @@ public:
       return true;
     }
 
-    ~KeyValueStoreApp() {}
 private:
     unsigned int store_capacity_;
     unsigned int store_size_;

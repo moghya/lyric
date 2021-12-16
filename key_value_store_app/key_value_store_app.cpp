@@ -12,6 +12,18 @@
 #include "../tcp_utils/tcp_utils.h"
 #include "key_value_store_app.h"
 
+
+KeyValueStoreApp::KeyValueStoreApp(std::string name,
+       unsigned int store_capacity,
+       EvictionPolicy eviction_policy) :
+       TCPServerApp(name),
+       store_capacity_(store_capacity),
+       eviction_policy_(eviction_policy) {
+}
+
+KeyValueStoreApp::~KeyValueStoreApp() {
+}
+
 ACTION_ON_CONNECTION  KeyValueStoreApp::HandleMessage(
         std::shared_ptr<TCPMessage> request) {
   auto message = request->message();

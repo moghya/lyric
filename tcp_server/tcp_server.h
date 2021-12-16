@@ -26,10 +26,10 @@
  * */
 class TCPServer {
 public:
-  TCPServer(std::shared_ptr<TCPServerApp> app,
+  TCPServer(std::unique_ptr<TCPServerApp> app,
             unsigned int port,
             unsigned int backlog_queue_size = 1000);
-
+  ~TCPServer();
   void StartListening();
 protected:
     bool BindAndListen();

@@ -18,6 +18,7 @@ class Message {
 public:
     Message(size_t buffer_capacity);
     Message(std::string message_data);
+    Message(Message&& message);
     ~Message();
     char* data() const;
     void put_data(unsigned int index, char c);
