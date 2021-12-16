@@ -13,24 +13,32 @@
 #include "key_value_store_app.h"
 
 ACTION_ON_CONNECTION  KeyValueStoreApp::HandleMessage(
-    std::shared_ptr<TCPMessage> message) {
-  PRINT_THREAD_ID std::cout << Name() << ":: TCPMessage " << message->data_str()
+    std::shared_ptr<TCPMessage> request_message) {
+  PRINT_THREAD_ID std::cout << Name()
+                            << ":: TCPMessage " << request_message->data_str()
                             << std::endl;
-  Command command = ParseMessage(message->data());
+  Command command = ParseMessage(request_message->data());
+
+  std::shared_ptr<TCPMessage> result_message;
+  result_message = std::make_shared<TCPMessage>(this->GetMessageBufferCapacity(),
+                                                 nullptr,
+                                                 request_message->sender());
   switch (command.type) {
     case Command::CommandType::PutEntry:
       PutEntry(command.key, command.value);
       break;
     case Command::CommandType::GetEntry:
-      message->set_data(GetEntry(command.key));
-      SendMessage(message);
+        result_message->set_data(GetEntry(command.key));
+        result_message->AppendNewLine();
+      SendMessage(result_message);
       break;
     case Command::CommandType::Close:
       return ACTION_ON_CONNECTION::CLOSE;
       break;
     default:
-      message->set_data("Invalid message");
-      SendMessage(message);
+        result_message->set_data("Invalid result");
+        result_message->AppendNewLine();
+      SendMessage(result_message);
   }
   return ACTION_ON_CONNECTION::KEEP_OPEN;
 }

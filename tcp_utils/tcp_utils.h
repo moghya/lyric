@@ -35,7 +35,6 @@ enum ACTION_ON_CONNECTION {
  * Following methods are wrapper around recvfrom and sendto methods.
  * */
 size_t ReceiveMessage(std::shared_ptr<TCPMessage> message);
-size_t SendMessage(std::shared_ptr<TCPMessage> message,
-                   bool append_new_line = true);
+size_t SendMessage(std::shared_ptr<TCPMessage> message);
 
 #endif // KEY_VALUE_STORE_TCP_UTILS_H
