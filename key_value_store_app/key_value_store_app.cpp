@@ -13,32 +13,26 @@
 #include "key_value_store_app.h"
 
 ACTION_ON_CONNECTION  KeyValueStoreApp::HandleMessage(
-    std::shared_ptr<TCPMessage> request_message) {
-  PRINT_THREAD_ID std::cout << Name()
-                            << ":: TCPMessage " << request_message->data_str()
-                            << std::endl;
-  Command command = ParseMessage(request_message->data());
-
-  std::shared_ptr<TCPMessage> result_message;
-  result_message = std::make_shared<TCPMessage>(this->GetMessageBufferCapacity(),
-                                                 nullptr,
-                                                 request_message->sender());
+        std::shared_ptr<TCPMessage> request) {
+  auto message = request->message();
+  auto client = request->sender();
+  PRINT_THREAD_ID std::cout << Name() << ":: Message " << message->data_str() << std::endl;
+  Command command = ParseMessage(message->data());
   switch (command.type) {
-    case Command::CommandType::PutEntry:
-      PutEntry(command.key, command.value);
-      break;
-    case Command::CommandType::GetEntry:
-        result_message->set_data(GetEntry(command.key));
-        result_message->AppendNewLine();
-      SendMessage(result_message);
-      break;
-    case Command::CommandType::Close:
-      return ACTION_ON_CONNECTION::CLOSE;
-      break;
-    default:
-        result_message->set_data("Invalid result");
-        result_message->AppendNewLine();
-      SendMessage(result_message);
+    case Command::CommandType::PutEntry: {
+        PutEntry(command.key, command.value);
+        break;
+    }
+    case Command::CommandType::GetEntry: {
+        client->SendMessage(GetEntry(command.key) + "\n");
+        break;
+    }
+    case Command::CommandType::Close: {
+        return ACTION_ON_CONNECTION::CLOSE;
+    }
+    default: {
+        client->SendMessage("Invalid result\n");
+    }
   }
   return ACTION_ON_CONNECTION::KEEP_OPEN;
 }
