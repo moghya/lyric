@@ -142,8 +142,9 @@ void TCPServer::SpawnThread(std::function<void()> cb, bool join_thread) {
 
 std::shared_ptr<TCPMessage> TCPServer::GetMessage(
     std::shared_ptr<TCPConnection> client) {
-  if (client == nullptr) return nullptr;
+  if (!client) return nullptr;
   auto message = std::move(client->ReceiveMessage(app_->GetMessageBufferCapacity()));
+  if (!message) return nullptr;
   auto tcp_message = std::make_shared<TCPMessage>(client, std::move(message));
   return tcp_message;
 }

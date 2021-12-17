@@ -49,9 +49,14 @@ size_t Message::buffer_capacity() const {
     return buffer_capacity_;
 }
 
-void Message::set_data(std::string data) {
-    strcpy(data_, data.c_str());
+void Message::set_data(std::string& data) {
+    if (buffer_capacity_ < data.length()) {
+        delete data_;
+        buffer_capacity_ = data.length();
+        data_ = new char[buffer_capacity_];
+    }
     length_ = data.length();
+    stpncpy(data_, data.c_str(), length_);
 }
 
 void Message::AppendNewLine() {
