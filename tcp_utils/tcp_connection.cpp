@@ -51,7 +51,7 @@ std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
                                    this->address_length_ptr());
     message->set_length(message_length);
     message->put_data(message_length, 0);
-    return message_length == 0 ? nullptr : std::move(message);
+    return std::move(message);
 }
 
 bool TCPConnection::SendMessage(std::string message_data) {

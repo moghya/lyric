@@ -22,7 +22,7 @@ public:
     ~Message();
     char* data() const;
     void put_data(unsigned int index, char c);
-    void set_data(std::string data);
+    void set_data(std::string& data);
     const std::string data_str() const;
     void set_length(size_t length);
     size_t length() const;
