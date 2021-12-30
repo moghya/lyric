@@ -8,14 +8,13 @@
 #include <cstring>
 #include <iostream>
 #include <memory>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
 #include <unistd.h>
 #include <unordered_map>
 
-#include "../tcp_server_app/tcp_server_app.h"
+#include "../tcp_utils/tcp_socket.h"
 #include "../tcp_utils/tcp_utils.h"
+#include "../tcp_utils/tcp_connection.h"
+#include "../tcp_utils/tcp_message.h"
 
 /*
  * This class implements methods to listen, accept connections.
@@ -26,8 +25,9 @@
  * */
 class TCPServer {
 public:
-  TCPServer(std::unique_ptr<TCPServerApp> app,
-            unsigned int port,
+  TCPServer(unsigned int port,
+            TCPMessage::Handler message_handler,
+            unsigned int message_buffer_size = 512,
             unsigned int backlog_queue_size = 1000);
   ~TCPServer();
   void StartListening();
@@ -56,12 +56,12 @@ private:
   }
 
 private:
-  std::shared_ptr<TCPServerApp> app_;
   unsigned int port_;
+  TCPMessage::Handler message_handler_;
+  unsigned int message_buffer_size_;
   unsigned int backlog_queue_size_;
-
-  struct sockaddr_in server_address_;
-  unsigned int server_socket_fd_;
+  TCPSocket socket_;
+  struct sockaddr_in address_;
 
   // Client socket_fd to TCPConnection map.
   // TODO(sawant) : Prune this to avoid memory leak due to abruptly closed
@@ -71,6 +71,7 @@ private:
   std::mutex active_clients_map_lock_;
 
   fd_set active_clients_fd_set_;
+  bool is_on_ = false;
 };
 
 
