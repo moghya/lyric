@@ -10,8 +10,6 @@
 #include <thread>
 
 #include "message.h"
-#include "tcp_connection.h"
-#include "tcp_message.h"
 
 #define PRINT_THREAD_ID do { \
    std::cout << "Thread::" \
@@ -19,9 +17,24 @@
              << "\t"; \
   } while(false); \
 
-enum ACTION_ON_CONNECTION {
-    KEEP_OPEN,
-    CLOSE,
-};
+namespace tcp_util {
+    enum ACTION_ON_CONNECTION {
+        KEEP_OPEN,
+        CLOSE,
+    };
 
+    static std::unique_ptr<Message> receive_stream_message(unsigned int socket_fd,
+                                                           unsigned int buffer_size)
+    {
+        auto message = std::make_unique<Message>(buffer_size);
+        recv(socket_fd, (void *) message->data(), message->buffer_capacity(), 0 /* flags */);
+        return message;
+    }
+
+    static size_t send_stream_message(unsigned int socket_fd,
+                                      std::unique_ptr<Message> message) {
+        // TODO(moghya) : change this to check for size returned and handle errors set if any.
+        return send(socket_fd, (void *) message->data(), message->length(), 0 /* flags */);
+    }
+} // tcp_util
 #endif // KEY_VALUE_STORE_TCP_UTILS_H

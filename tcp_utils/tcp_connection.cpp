@@ -7,12 +7,22 @@
 #include <string>
 
 #include "tcp_connection.h"
+#include "tcp_utils.h"
 
 
 
 TCPConnection::TCPConnection() {
     address_ = (struct sockaddr*) malloc(sizeof(struct sockaddr_in));
     address_length_ = (socklen_t*) malloc(sizeof(socklen_t));
+}
+
+
+TCPConnection::TCPConnection(struct sockaddr* address,
+                             unsigned int socket_fd)
+    : address_(address),
+      socket_fd_(socket_fd) {
+    address_length_ = (socklen_t*) malloc(sizeof(socklen_t));
+    *address_length_ = sizeof (address_);
 }
 
 TCPConnection::~TCPConnection() {
@@ -40,28 +50,16 @@ unsigned int TCPConnection::socket_fd() const {
     return socket_fd_;
 }
 
-std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
-    std::unique_ptr<Message> message;
-    message = std::make_unique<Message>(buffer_capacity);
-    auto message_length = recvfrom(this->socket_fd(),
-                                   (void*) message->data(),
-                                   message->buffer_capacity(),
-                                   0,
-                                   this->address(),
-                                   this->address_length_ptr());
-    message->set_length(message_length);
-    message->put_data(message_length, 0);
+std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) const {
+    auto message = std::move(tcp_util::receive_stream_message(
+                            this->socket_fd(),buffer_capacity));
+    message->put_data(message->length(), 0);
     return std::move(message);
 }
 
-bool TCPConnection::SendMessage(std::string message_data) {
-    std::shared_ptr<Message> message;
-    message = std::make_unique<Message>(message_data);
-    size_t sent_size = sendto(this->socket_fd(),
-                              (void*) message->data(),
-                              message->length(),
-                              0,
-                              this->address(),
-                              this->address_length());
+bool TCPConnection::SendMessage(std::string message_data) const {
+    auto message = std::make_unique<Message>(message_data);
+    size_t sent_size = tcp_util::send_stream_message(
+                this->socket_fd(), std::move(message));
     return sent_size == message_data.size();
 }

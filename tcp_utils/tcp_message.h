@@ -7,6 +7,7 @@
 
 #include "message.h"
 #include "tcp_connection.h"
+#include "tcp_utils.h"
 
 class TCPMessage {
 public:
@@ -19,6 +20,7 @@ public:
         return message_.get();
     }
     ~TCPMessage();
+    typedef std::function<tcp_util::ACTION_ON_CONNECTION(std::shared_ptr<TCPMessage>)> Handler;
 private:
     std::shared_ptr<TCPConnection> sender_;
     std::unique_ptr<Message> message_;

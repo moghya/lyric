@@ -19,6 +19,7 @@ class Message;
 class TCPConnection {
 public:
     TCPConnection();
+    TCPConnection(struct sockaddr* address, unsigned int socket_fd);
     ~TCPConnection();
     struct sockaddr* address() const;
     socklen_t* address_length_ptr() const;
@@ -26,15 +27,14 @@ public:
     void set_socket_fd(unsigned int sokect_fd);
     unsigned int socket_fd() const;
     /*
-     * Following methods are wrapper around recvfrom and sendto methods.
+     * Following methods are wrapper around recv and send methods.
      * */
-    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity);
-    bool SendMessage(std::string message_data);
+    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) const;
+    bool SendMessage(std::string message_data) const;
 private:
     struct sockaddr* address_;
     socklen_t* address_length_;
     unsigned int socket_fd_;
-
 };
 
 

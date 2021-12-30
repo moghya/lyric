@@ -12,7 +12,7 @@ Message::Message(size_t buffer_capacity) :
     data_ = new char[buffer_capacity_];
 }
 
-Message::Message(std::string message_data) :
+Message::Message(const std::string& message_data) :
         buffer_capacity_(message_data.size()) {
     data_ = new char[buffer_capacity_];
     set_data(message_data);
@@ -49,7 +49,7 @@ size_t Message::buffer_capacity() const {
     return buffer_capacity_;
 }
 
-void Message::set_data(std::string& data) {
+void Message::set_data(const std::string& data) {
     if (buffer_capacity_ < data.length()) {
         delete data_;
         buffer_capacity_ = data.length();
