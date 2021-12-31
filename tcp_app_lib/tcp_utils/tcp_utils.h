@@ -27,14 +27,16 @@ namespace tcp_util {
                                                            unsigned int buffer_size)
     {
         auto message = std::make_unique<Message>(buffer_size);
-        recv(socket_fd, (void *) message->data(), message->buffer_capacity(), 0 /* flags */);
+        if (recv(socket_fd, (void *) message->data(), message->buffer_capacity(), 0 /* flags */) <=0 ) {
+            return nullptr;
+        }
         return message;
     }
 
     static size_t send_stream_message(unsigned int socket_fd,
                                       std::unique_ptr<Message> message) {
         // TODO(moghya) : change this to check for size returned and handle errors set if any.
-        return send(socket_fd, (void *) message->data(), message->length(), 0 /* flags */);
+        return send(socket_fd, (void *) message->data(), message->length(), MSG_NOSIGNAL /* flags */);
     }
 } // tcp_util
 #endif // KEY_VALUE_STORE_TCP_UTILS_H
