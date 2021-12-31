@@ -50,7 +50,7 @@ unsigned int TCPConnection::socket_fd() const {
     return socket_fd_;
 }
 
-std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) const {
+std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
     auto message = std::move(tcp_util::receive_stream_message(
                             this->socket_fd(),buffer_capacity));
     message->put_data(message->length(), 0);
