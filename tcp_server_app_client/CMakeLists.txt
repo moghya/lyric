@@ -1,0 +1,10 @@
+cmake_minimum_required(VERSION 3.17)
+
+set(CMAKE_CXX_STANDARD 14)
+
+add_library(tcp_server_app_client tcp_server_app_client.cpp)
+target_link_libraries(tcp_server_app_client tcp_utils)
+target_link_libraries(tcp_server_app_client tcp_client)
+
+add_executable(tcp_server_app_client_test tcp_server_app_client_test.cpp)
+target_link_libraries(tcp_server_app_client_test tcp_server_app_client)

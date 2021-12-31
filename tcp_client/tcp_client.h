@@ -23,11 +23,11 @@ public:
         return name_;
     }
 
-    bool SendMessage(std::string message) {
+    bool SendMessage(std::string message) const {
         return connection_->SendMessage(message);
     }
 
-    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) {
+    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) const {
         return std::move(connection_->ReceiveMessage(buffer_capacity));
     }
 
