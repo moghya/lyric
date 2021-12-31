@@ -14,17 +14,28 @@
 
 class TCPClient {
 public:
-    TCPClient();
+    TCPClient(std::string dest_ip_address,
+              unsigned int dest_port,
+              std::string name);
     ~TCPClient();
-    std::shared_ptr<const TCPConnection> AddConnection(std::string ip_address,
-                                                       unsigned int port,
-                                                       std::string name);
-    std::shared_ptr<const TCPConnection> GetConnection(unsigned int index) const;
-    std::shared_ptr<const TCPConnection> GetConnectionByName(const std::string& name) const;
+
+    const std::string name() const {
+        return name_;
+    }
+
+    bool SendMessage(std::string message) {
+        return connection_->SendMessage(message);
+    }
+
+    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) {
+        return std::move(connection_->ReceiveMessage(buffer_capacity));
+    }
 
 private:
-    std::vector<std::shared_ptr<TCPConnection>> connections_;
-    std::unordered_map<std::string, int> connections_map_;
+    std::string dest_ip_address_;
+    unsigned int dest_port_;
+    std::string name_;
+    std::shared_ptr<TCPConnection> connection_;
 };
 
 

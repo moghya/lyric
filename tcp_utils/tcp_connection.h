@@ -11,7 +11,13 @@
 
 #include "message.h"
 
-class Message;
+enum TCPConnectionState {
+    CREATED,
+    IDLE_OPEN, // on connection
+    IDLE_CLOSED, // on connection closed
+    WAITING_FOR_MESSAGE, // waiting for message
+    SENDING_MESSAGE, // sending message
+};
 
 /*
  * This class is a wrapper around tcp socket fd and socket address.
@@ -29,7 +35,7 @@ public:
     /*
      * Following methods are wrapper around recv and send methods.
      * */
-    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) const;
+    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity);
     bool SendMessage(std::string message_data) const;
 private:
     struct sockaddr* address_;
