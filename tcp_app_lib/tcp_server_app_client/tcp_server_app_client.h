@@ -20,7 +20,7 @@ public:
         return tcp_client_;
     }
 
-private:
+protected:
     std::shared_ptr<TCPClient> tcp_client_;
 };
 

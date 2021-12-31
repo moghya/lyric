@@ -9,7 +9,7 @@
 #include <string>
 #include <sys/socket.h>
 
-#include "../../tcp_utils/tcp_socket.h"
+#include "../tcp_utils/tcp_socket.h"
 #include "tcp_client.h"
 
 
