@@ -53,6 +53,7 @@ unsigned int TCPConnection::socket_fd() const {
 std::unique_ptr<Message> TCPConnection::ReceiveMessage(size_t buffer_capacity) {
     auto message = std::move(tcp_util::receive_stream_message(
                             this->socket_fd(),buffer_capacity));
+    if (message == nullptr) return nullptr;
     message->put_data(message->length(), 0);
     return std::move(message);
 }
