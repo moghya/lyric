@@ -6,6 +6,8 @@ set(CMAKE_CXX_STANDARD 14)
 add_subdirectory(tcp_app_lib)
 add_subdirectory(key_value_store_app)
 
-add_executable(key_value_store main.cpp)
-target_link_libraries(key_value_store key_value_store_app)
-target_link_libraries(key_value_store tcp_server)
+add_executable(app app.cpp)
+target_link_libraries(app key_value_store_app)
+
+add_executable(client client.cpp)
+target_link_libraries(client key_value_store_app_client)

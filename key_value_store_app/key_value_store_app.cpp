@@ -9,44 +9,48 @@
 #include <thread>
 #include <vector>
 
-#include "../tcp_utils/tcp_utils.h"
+#include "../tcp_app_lib/tcp_utils/tcp_utils.h"
 #include "key_value_store_app.h"
 
 
-KeyValueStoreApp::KeyValueStoreApp(std::string name,
-       unsigned int store_capacity,
-       EvictionPolicy eviction_policy) :
-       TCPServerApp(name),
-       store_capacity_(store_capacity),
-       eviction_policy_(eviction_policy) {
+KeyValueStoreApp::KeyValueStoreApp(
+    std::string name,
+    unsigned int store_capacity,
+    EvictionPolicy eviction_policy,
+    unsigned int port) :
+   TCPServerApp(name, port),
+   store_capacity_(store_capacity),
+   eviction_policy_(eviction_policy) {
 }
 
 KeyValueStoreApp::~KeyValueStoreApp() {
 }
 
-ACTION_ON_CONNECTION  KeyValueStoreApp::HandleMessage(
-        std::shared_ptr<TCPMessage> request) {
+tcp_util::ACTION_ON_CONNECTION
+KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
   auto message = request->message();
   auto client = request->sender();
   PRINT_THREAD_ID std::cout << Name() << ":: Message " << message->data_str() << std::endl;
   Command command = ParseMessage(message->data());
   switch (command.type) {
     case Command::CommandType::PutEntry: {
-        PutEntry(command.key, command.value);
-        break;
+      PutEntry(command.key, command.value);
+      client->SendMessage("[" + command.key + ":" + GetEntry(command.key) + "]\n");
+      break;
     }
     case Command::CommandType::GetEntry: {
-        client->SendMessage(GetEntry(command.key) + "\n");
-        break;
+      client->SendMessage(GetEntry(command.key) + "\n");
+      break;
     }
     case Command::CommandType::Close: {
-        return ACTION_ON_CONNECTION::CLOSE;
+      client->SendMessage("closed_by-> " + Name());
+      return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     }
     default: {
         client->SendMessage("Invalid result\n");
     }
   }
-  return ACTION_ON_CONNECTION::KEEP_OPEN;
+  return tcp_util::ACTION_ON_CONNECTION::KEEP_OPEN;
 }
 
 
@@ -124,5 +128,4 @@ void KeyValueStoreApp::PutEntry(std::string key, std::string value) {
                             << ", value: " << value << "]" << std::endl;
   store_[key] = value;
   store_lock_.unlock();
-
 }
