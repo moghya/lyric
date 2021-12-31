@@ -5,7 +5,7 @@
 #include <iostream>
 #include <memory>
 
-#include "tcp_server/tcp_server.h"
+#include "tcp_server.h"
 
 const unsigned int PORT = 8081;
 
