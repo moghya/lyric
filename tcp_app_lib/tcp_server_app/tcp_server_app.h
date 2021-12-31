@@ -8,8 +8,8 @@
 #include <string>
 
 #include "../tcp_utils/tcp_message.h"
-#include "../tcp_server/tcp_server.h"
 #include "../tcp_utils/tcp_utils.h"
+#include "../tcp_server/tcp_server.h"
 
 /*
  * This is abstract class of an app that can be ran using a TCPServer.
