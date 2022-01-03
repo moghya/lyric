@@ -38,6 +38,10 @@ void TCPServer::StartListening() {
   AcceptConnections();
 }
 
+void TCPServer::StopListening() {
+    is_on_ = false;
+}
+
 bool TCPServer::BindAndListen() {
   int bind_result = bind(socket_.fd(),  (struct sockaddr*) &address_, sizeof (address_));
   if (bind_result != 0) {
@@ -49,9 +53,7 @@ bool TCPServer::BindAndListen() {
     std::cout << "Could not listen on the port " << port_ << std::endl;
     return false;
   }
-  std::cout << "Started listening "
-            << " on PORT: " << port_
-            << std::endl;
+  std::cout << "Started listening " << " on port: " << port_ << std::endl;
   return true;
 }
 
@@ -126,7 +128,7 @@ void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client) {
   [this, client = std::move(client)]() {
     HandleMessage(GetMessage(std::move(client)));
   };
-  SpawnThread(std::move(message_handler));
+  tcp_util::SpawnThread(std::move(message_handler));
 }
 
 std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
@@ -144,15 +146,6 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
   PRINT_THREAD_ID std::cout << "Connection accepted: "
                             << client->socket_fd() << std::endl;
   return client;
-}
-
-void TCPServer::SpawnThread(std::function<void()> cb, bool join_thread) {
-  auto t = std::make_shared<std::thread>(std::move(cb));
-  if (join_thread) {
-    t->join();
-  } else {
-    t->detach();
-  }
 }
 
 std::shared_ptr<TCPMessage> TCPServer::GetMessage(
