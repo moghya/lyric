@@ -38,5 +38,14 @@ namespace tcp_util {
         // TODO(moghya) : change this to check for size returned and handle errors set if any.
         return send(socket_fd, (void *) message->data(), message->length(), MSG_NOSIGNAL /* flags */);
     }
+
+    static void SpawnThread(std::function<void()> cb, bool join_thread = true) {
+        auto t = std::make_shared<std::thread>(std::move(cb));
+        if (join_thread) {
+            t->join();
+        } else {
+            t->detach();
+        }
+    }
 } // tcp_util
 #endif // KEY_VALUE_STORE_TCP_UTILS_H

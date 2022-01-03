@@ -31,6 +31,7 @@ public:
             unsigned int backlog_queue_size = 1000);
   ~TCPServer();
   void StartListening();
+  void StopListening();
 protected:
     bool BindAndListen();
     void AcceptConnections();
@@ -39,8 +40,6 @@ protected:
     void AcceptMessage(std::shared_ptr<TCPConnection> client);
     std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection> client);
     void HandleMessage(std::shared_ptr<TCPMessage> message);
-    void SpawnThread(std::function<void()> cb, bool join_thread = true);
-
 private:
   void AddToActiveClient(unsigned int client_socket_fd,
                          std::shared_ptr<TCPConnection> client) {

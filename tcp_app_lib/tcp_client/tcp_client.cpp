@@ -19,7 +19,6 @@ TCPClient::TCPClient(std::string dest_ip_address,
     dest_ip_address_(dest_ip_address),
     dest_port_(dest_port),
     name_(name) {
-
     /* Change this to get TCPAddress and TCPSocket for TCPConnection Constructor */
     struct addrinfo hints;
     struct addrinfo* res;
