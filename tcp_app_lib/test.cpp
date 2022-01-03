@@ -8,12 +8,19 @@
 #include "tcp_server_app/tcp_server_app.h"
 #include "tcp_server_app_client/tcp_server_app_client.h"
 
+#include "../third_party/asyncplusplus/include/async++.h"
 
-void TestTCPClientAndTCPServer() {
+struct TCPServerSetupInfo {
+    unsigned int port;
+    std::function<void()> start_cb;
+    std::function<void()> stop_cb;
+};
+
+TCPServerSetupInfo GetTCPServerSetup() {
     srand (time(NULL));
     unsigned int PORT = 9000 + rand()%1000;
     TCPMessage::Handler handler =
-        [] (std::shared_ptr<TCPMessage> tcp_message) -> tcp_util::ACTION_ON_CONNECTION {
+            [] (std::shared_ptr<TCPMessage> tcp_message) -> tcp_util::ACTION_ON_CONNECTION {
         PRINT_THREAD_ID
         std::cout << "Received message: " << tcp_message->message()->data()
                   << " from: " << tcp_message->sender()->socket_fd() << "\n";
@@ -21,16 +28,23 @@ void TestTCPClientAndTCPServer() {
                                            tcp_message->message()->data_str() + " >>. Bye :)");
         return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     };
+
     auto server = std::make_shared<TCPServer>(PORT, handler);
     auto start_listening_cb = [server]() {
         server->StartListening();
     };
-    tcp_util::SpawnThread(start_listening_cb, false /* join */);
-    std::atomic<unsigned int> count(0);
-    auto connect_client_cb = [server, PORT, &count]() mutable {
-        count++;
-        TCPClient client("127.0.0.1", PORT, "client_0");
-        std::string msg_str = "Hello World__" + std::to_string(count);
+    auto stop_server_cb = [server]() {
+        server->StopListening();
+        PRINT_THREAD_ID std::cout << "TestTCPClientAndTCPServer passed.\n";
+    };
+    return TCPServerSetupInfo{PORT, start_listening_cb, stop_server_cb};
+}
+
+void TestTCPClientAndTCPServer() {
+    auto server = GetTCPServerSetup();
+    std::function<void(int)> connect_client_cb = [port  = server.port](int index) mutable {
+        TCPClient client("127.0.0.1", port, "client_0");
+        std::string msg_str = "Hello World__" + std::to_string(index);
         PRINT_THREAD_ID std::cout << "Sending message: " << msg_str << "\n";
         if (client.SendMessage(msg_str)) {
             auto message = client.ReceiveMessage(512);
@@ -39,15 +53,13 @@ void TestTCPClientAndTCPServer() {
             throw std::string("Could not send message.");
         }
     };
-    const unsigned int number_of_calls = 1000;
-    for(unsigned int i=0; i < number_of_calls; ++i) {
-        tcp_util::SpawnThread(connect_client_cb);
-    }
-    auto stop_server_cb = [server]() {
-        server->StopListening();
-        PRINT_THREAD_ID std::cout << "TestTCPClientAndTCPServer passed.\n";
+    int number_of_calls = 1000;
+    auto start_clients_cb = [number_of_calls, connect_client_cb]() {
+        async::parallel_for(async::irange(0, number_of_calls), connect_client_cb);
     };
-    tcp_util::SpawnThread(stop_server_cb);
+
+    async::spawn(server.start_cb);
+    async::spawn(start_clients_cb).then(server.stop_cb);
 }
 
 int main() {
