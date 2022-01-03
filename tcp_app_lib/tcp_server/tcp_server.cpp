@@ -11,6 +11,8 @@
 
 #include "tcp_server.h"
 
+#include "../../third_party/asyncplusplus/include/async++.h"
+
 
 TCPServer::TCPServer(unsigned int port,
                      TCPMessage::Handler message_handler,
@@ -63,6 +65,7 @@ bool TCPServer::BindAndListen() {
 void TCPServer::AcceptConnections() {
   fd_set read_fd_set;
   fd_set error_fd_set;
+  struct timeval select_wait_time{2,0};
   while (is_on_) {
     PopulateFdSetWithConnectedClients(read_fd_set);
     PopulateFdSetWithConnectedClients(error_fd_set);
@@ -71,9 +74,16 @@ void TCPServer::AcceptConnections() {
     FD_SET(socket_.fd(), &read_fd_set);
 
     PRINT_THREAD_ID std::cout << "Finding readable socket_fds " << std::endl;
-    if (select(FD_SETSIZE, &read_fd_set, NULL, &error_fd_set, NULL) < 0) {
-      PRINT_THREAD_ID std::cout << "Error in select.\n";
+    int select_ret = select(FD_SETSIZE, &read_fd_set, NULL,
+                            &error_fd_set, &select_wait_time);
+    if (select_ret < 0) {
+      PRINT_THREAD_ID std::cout << "Error in select. Shutting down\n";
       return;
+    }
+
+    if (select_ret == 0) {
+        PRINT_THREAD_ID std::cout << "Hit select timeout, continuing..\n";
+        continue;
     }
 
     // Check if server_socket_fd_ is readable to accept new connection.
@@ -94,7 +104,6 @@ void TCPServer::AcceptConnections() {
         RemoveFromActiveClients(client_entry.second);
       }
     }
-
     for(auto client_entry : active_clients_map_) {
       if (FD_ISSET(client_entry.first, &read_fd_set)) {
         PRINT_THREAD_ID std::cout << "Found readable socket_fd: "
@@ -103,14 +112,13 @@ void TCPServer::AcceptConnections() {
       }
     }
     active_clients_map_lock_.unlock();
-
-    for (auto client : readable_clients) {
-      PRINT_THREAD_ID std::cout << "Found readable sender socket fd: "
-                                << client->socket_fd() << std::endl;
-      AcceptMessage(std::move(client));
-    }
+    async::parallel_for(readable_clients,
+                        [this](std::shared_ptr<TCPConnection> client) {
+        this->AcceptMessage(client, false);
+    });
     readable_clients.clear();
   }
+  PRINT_THREAD_ID std::cout << "Server is not on, shutting down...\n";
 }
 
 void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
@@ -123,16 +131,21 @@ void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
   active_clients_map_lock_.unlock();
 }
 
-void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client) {
-  std::function<void()> message_handler =
-  [this, client = std::move(client)]() {
+void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_thread) {
+  PRINT_THREAD_ID std::cout << "Found readable sender socket fd: "
+                            << client->socket_fd() << "\n";
+  auto message_handler = [this, client = std::move(client)]() {
     HandleMessage(GetMessage(std::move(client)));
   };
-  tcp_util::SpawnThread(std::move(message_handler));
+  if (!spawn_thread) {
+      message_handler();
+  } else {
+      tcp_util::SpawnThread(std::move(message_handler));
+  }
 }
 
 std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
-  PRINT_THREAD_ID std::cout << "Accepting new connection" << std::endl;
+  PRINT_THREAD_ID std::cout << "Accepting new connection\n";
   auto client = std::make_shared<TCPConnection>();
   // Initialize sender address struct and accept new connection
   unsigned int client_socket_fd = accept(socket_.fd(),

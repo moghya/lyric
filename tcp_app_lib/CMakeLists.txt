@@ -9,6 +9,7 @@ add_subdirectory(tcp_server_app)
 add_subdirectory(tcp_server_app_client)
 
 add_executable(tcp_app_lib_tester test.cpp)
+target_link_libraries(tcp_app_lib_tester Async++)
 target_link_libraries(tcp_app_lib_tester tcp_utils)
 target_link_libraries(tcp_app_lib_tester tcp_client)
 target_link_libraries(tcp_app_lib_tester tcp_server)
