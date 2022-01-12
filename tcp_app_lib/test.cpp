@@ -5,9 +5,8 @@
 #include "tcp_utils/tcp_utils.h"
 #include "tcp_client/tcp_client.h"
 #include "tcp_server/tcp_server.h"
-#include "tcp_server_app/tcp_server_app.h"
-#include "tcp_server_app_client/tcp_server_app_client.h"
 
+#include "../third_party/spdlog/include/spdlog/spdlog.h"
 #include "../third_party/asyncplusplus/include/async++.h"
 
 struct TCPServerSetupInfo {
@@ -21,9 +20,9 @@ TCPServerSetupInfo GetTCPServerSetup() {
     unsigned int PORT = 9000 + rand()%1000;
     TCPMessage::Handler handler =
             [] (std::shared_ptr<TCPMessage> tcp_message) -> tcp_util::ACTION_ON_CONNECTION {
-        PRINT_THREAD_ID
-        std::cout << "Received message: " << tcp_message->message()->data()
-                  << " from: " << tcp_message->sender()->socket_fd() << "\n";
+        SPDLOG_INFO(fmt::format("Received message:{} from:{}",
+                     tcp_message->message()->data(),
+                     tcp_message->sender()->socket_fd()));
         tcp_message->sender()->SendMessage("Thanks for message, << " +
                                            tcp_message->message()->data_str() + " >>. Bye :)");
         return tcp_util::ACTION_ON_CONNECTION::CLOSE;
@@ -35,7 +34,7 @@ TCPServerSetupInfo GetTCPServerSetup() {
     };
     auto stop_server_cb = [server]() {
         server->StopListening();
-        PRINT_THREAD_ID std::cout << "TestTCPClientAndTCPServer passed.\n";
+        SPDLOG_INFO("TestTCPClientAndTCPServer passed.");
     };
     return TCPServerSetupInfo{PORT, start_listening_cb, stop_server_cb};
 }
@@ -45,10 +44,10 @@ void TestTCPClientAndTCPServer() {
     std::function<void(int)> connect_client_cb = [port  = server.port](int index) mutable {
         TCPClient client("127.0.0.1", port, "client_0");
         std::string msg_str = "Hello World__" + std::to_string(index);
-        PRINT_THREAD_ID std::cout << "Sending message: " << msg_str << "\n";
+        SPDLOG_INFO(fmt::format("Sending message: {}", msg_str));
         if (client.SendMessage(msg_str)) {
             auto message = client.ReceiveMessage(512);
-            PRINT_THREAD_ID std::cout << "Got message from server: " <<  message->data() << "\n";
+            SPDLOG_INFO(fmt::format("Received message: {}", message->data()));
         } else {
             throw std::string("Could not send message.");
         }
@@ -63,6 +62,7 @@ void TestTCPClientAndTCPServer() {
 }
 
 int main() {
+    spdlog::set_pattern("[%l] [%n] [%A-%d-%m-%Y] [%H:%M:%S] [%z] [%t] %s:%# %v");
     TestTCPClientAndTCPServer();
     return 0;
 }

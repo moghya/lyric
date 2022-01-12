@@ -9,7 +9,9 @@
 #include <string>
 #include <sys/socket.h>
 
+#include "../../third_party/spdlog/include/spdlog/spdlog.h"
 #include "../tcp_utils/tcp_socket.h"
+
 #include "tcp_client.h"
 
 
@@ -31,10 +33,10 @@ TCPClient::TCPClient(std::string dest_ip_address,
     // make a socket:
     sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sockfd < 0) {
-        std::cout << "did not get sockfd";
+        SPDLOG_INFO("did not get sockfd");
     }
     if(connect(sockfd, res->ai_addr, res->ai_addrlen) < 0 ) {
-        std::cout << "could not connect";
+        SPDLOG_INFO("could not connect");
     }
     connection_ = std::make_shared<TCPConnection>(res->ai_addr, sockfd);
 }
