@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "../tcp_app_lib/tcp_server_app/tcp_server_app.h"
+#include "key_value_store/key_value_store.h"
 #include "utils.h"
 
 
@@ -23,14 +24,9 @@
 
 class KeyValueStoreApp : public TCPServerApp {
 public:
-    class Command;
-    enum EvictionPolicy {
-        kFIFO, kLRU, kMRU,
-    };
-
     KeyValueStoreApp(std::string name,
                      unsigned int store_capacity,
-                     EvictionPolicy eviction_policy,
+                     KeyValueStore::EvictionPolicy eviction_policy,
                      unsigned int port);
 
     ~KeyValueStoreApp() override;
@@ -39,38 +35,13 @@ public:
         return kMessageBufferCapacity;
     }
 
-    Command ParseMessage(char* message_str);
-
-    void PutEntry(std::string key, std::string value);
-    std::string GetEntry(std::string key);
+    KeyValueStore::Command ParseMessage(char* message_str);
 
     tcp_util::ACTION_ON_CONNECTION HandleMessage(
             std::shared_ptr<TCPMessage> tcp_message) override;
 
 private:
-    unsigned int store_capacity_;
-    unsigned int store_size_;
-    EvictionPolicy eviction_policy_;
-    std::unordered_map<std::string,std::string> store_;
-    std::mutex store_lock_;
-};
-
-//-----------------
-
-class KeyValueStoreApp::Command  {
-public:
-    enum CommandType {
-        Invalid,
-        PutEntry,
-        GetEntry,
-        Close
-    };
-    Command(CommandType type = CommandType::Invalid,
-            std::string key = "",
-            std::string value = "") : type(type), key(key), value(value) {}
-    CommandType type;
-    std::string key;
-    std::string value;
+    std::shared_ptr<KeyValueStore> store_;
 };
 
 //-----------------
