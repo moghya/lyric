@@ -9,9 +9,10 @@
 #include <sys/select.h>
 #include <thread>
 
-#include "tcp_server.h"
-
 #include "../../third_party/asyncplusplus/include/async++.h"
+#include "../../third_party/spdlog/include/spdlog/spdlog.h"
+
+#include "tcp_server.h"
 
 
 TCPServer::TCPServer(unsigned int port,
@@ -47,15 +48,15 @@ void TCPServer::StopListening() {
 bool TCPServer::BindAndListen() {
   int bind_result = bind(socket_.fd(),  (struct sockaddr*) &address_, sizeof (address_));
   if (bind_result != 0) {
-    std::cout << "Could not bind to the port " << port_ << std::endl;
+      SPDLOG_INFO(fmt::format("Could not bind to the port: {}", port_));
     return false;
   }
   int listen_result = listen(socket_.fd(), backlog_queue_size_);
   if (listen_result != 0) {
-    std::cout << "Could not listen on the port " << port_ << std::endl;
+    SPDLOG_INFO(fmt::format("Could not listen on the port: {}", port_));
     return false;
   }
-  std::cout << "Started listening " << " on port: " << port_ << std::endl;
+  SPDLOG_INFO(fmt::format("Started listening on port: {}", port_));
   return true;
 }
 
@@ -73,22 +74,22 @@ void TCPServer::AcceptConnections() {
     // Add server's socket_fd to read_fd_set for accepting new connections.
     FD_SET(socket_.fd(), &read_fd_set);
 
-    PRINT_THREAD_ID std::cout << "Finding readable socket_fds " << std::endl;
+    SPDLOG_INFO("Finding readable socket_fds...");
     int select_ret = select(FD_SETSIZE, &read_fd_set, NULL,
                             &error_fd_set, &select_wait_time);
     if (select_ret < 0) {
-      PRINT_THREAD_ID std::cout << "Error in select. Shutting down\n";
+      SPDLOG_ERROR("Error in select. Shutting down...");
       return;
     }
 
     if (select_ret == 0) {
-        PRINT_THREAD_ID std::cout << "Hit select timeout, continuing..\n";
+        SPDLOG_INFO("Hit select timeout, continuing...");
         continue;
     }
 
     // Check if server_socket_fd_ is readable to accept new connection.
     if (FD_ISSET(socket_.fd(), &read_fd_set)) {
-      PRINT_THREAD_ID std::cout << "New connection available.\n";
+      SPDLOG_INFO("New connection available!");
       AcceptConnection();
     }
 
@@ -99,15 +100,13 @@ void TCPServer::AcceptConnections() {
     // Remove all clients with error
     for(auto client_entry : active_clients_map_) {
       if (FD_ISSET(client_entry.first, &error_fd_set)) {
-        PRINT_THREAD_ID std::cout << "Found error socket_fd: "
-                                  << socket_.fd() << std::endl;
+        SPDLOG_ERROR(fmt::format("Found error socket_fd: {}", socket_.fd()));
         RemoveFromActiveClients(client_entry.second);
       }
     }
     for(auto client_entry : active_clients_map_) {
       if (FD_ISSET(client_entry.first, &read_fd_set)) {
-        PRINT_THREAD_ID std::cout << "Found readable socket_fd: "
-                                  << client_entry.first << std::endl;
+        SPDLOG_INFO(fmt::format("Found readable socket_fd: {}", client_entry.first));
         readable_clients.insert(client_entry.second);
       }
     }
@@ -118,7 +117,7 @@ void TCPServer::AcceptConnections() {
     });
     readable_clients.clear();
   }
-  PRINT_THREAD_ID std::cout << "Server is not on, shutting down...\n";
+  SPDLOG_INFO("Server is not on, shutting down...");
 }
 
 void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
@@ -132,8 +131,7 @@ void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
 }
 
 void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_thread) {
-  PRINT_THREAD_ID std::cout << "Found readable sender socket fd: "
-                            << client->socket_fd() << "\n";
+  SPDLOG_INFO(fmt::format("Accepting message from sender socket_fd: {}", client->socket_fd()));
   auto message_handler = [this, client = std::move(client)]() {
     HandleMessage(GetMessage(std::move(client)));
   };
@@ -145,19 +143,18 @@ void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_
 }
 
 std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
-  PRINT_THREAD_ID std::cout << "Accepting new connection\n";
+  SPDLOG_INFO("Accepting new connection");
   auto client = std::make_shared<TCPConnection>();
   // Initialize sender address struct and accept new connection
   unsigned int client_socket_fd = accept(socket_.fd(),
                                          client->address(),
                                          client->address_length_ptr());
   if (client_socket_fd == -1) {
-    PRINT_THREAD_ID std::cout << "Invalid sender socket fd" << std::endl;
+    SPDLOG_ERROR("Invalid sender socket fd");
     return nullptr;
   }
   AddToActiveClient(client_socket_fd, client);
-  PRINT_THREAD_ID std::cout << "Connection accepted: "
-                            << client->socket_fd() << std::endl;
+  SPDLOG_INFO(fmt::format("Connection accepted on socket_fd: {}", client->socket_fd()));
   return client;
 }
 
@@ -174,15 +171,17 @@ void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
   auto client = tcp_message->sender();
   if (!tcp_message->message()) {
       RemoveFromActiveClients(client);
-      PRINT_THREAD_ID std::cout << "Connection lost: " << client->socket_fd() << std::endl;
+      SPDLOG_ERROR(fmt::format("Connection lost from socket_fd: {}", client->socket_fd()));
       return;
   }
 
   try {
-    PRINT_THREAD_ID std::cout << "Client: " << client->socket_fd() << "\t" << "Message: " << tcp_message->message()->data_str() << std::endl;
+    SPDLOG_INFO(fmt::format("Client socket_fd: {} Message: {}",
+                             client->socket_fd(),
+                             tcp_message->message()->data_str()));
     auto action_to_take = message_handler_(tcp_message);
     if (action_to_take == tcp_util::ACTION_ON_CONNECTION::CLOSE) {
-      PRINT_THREAD_ID std::cout << "Closing client: " << client->socket_fd() << std::endl;
+      SPDLOG_INFO(fmt::format("Closing client socket_fd: {}", client->socket_fd()));
       RemoveFromActiveClients(client);
     }
   } catch(std::exception exp) {
