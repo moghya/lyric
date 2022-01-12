@@ -10,6 +10,7 @@ add_subdirectory(key_value_store_app)
 
 add_executable(app app.cpp)
 target_link_libraries(app key_value_store_app)
+target_link_libraries(app spdlog::spdlog_header_only)
 
 add_executable(client client.cpp)
 target_link_libraries(client key_value_store_app_client)

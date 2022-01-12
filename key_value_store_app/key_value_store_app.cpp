@@ -2,25 +2,22 @@
 // Created by Shubham Sawant on 30/06/21.
 //
 
-#include <iostream>
 #include <functional>
 #include <memory>
 #include <string>
-#include <thread>
 #include <vector>
 
+#include "../third_party/spdlog/include/spdlog/spdlog.h"
 #include "../tcp_app_lib/tcp_utils/tcp_utils.h"
 #include "key_value_store_app.h"
-
 
 KeyValueStoreApp::KeyValueStoreApp(
     std::string name,
     unsigned int store_capacity,
-    EvictionPolicy eviction_policy,
+    KeyValueStore::EvictionPolicy eviction_policy,
     unsigned int port) :
    TCPServerApp(name, port),
-   store_capacity_(store_capacity),
-   eviction_policy_(eviction_policy) {
+   store_(std::make_shared<KeyValueStore>(name, store_capacity, eviction_policy)) {
 }
 
 KeyValueStoreApp::~KeyValueStoreApp() {
@@ -30,19 +27,19 @@ tcp_util::ACTION_ON_CONNECTION
 KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
   auto message = request->message();
   auto client = request->sender();
-  PRINT_THREAD_ID std::cout << Name() << ":: Message " << message->data_str() << std::endl;
-  Command command = ParseMessage(message->data());
+  SPDLOG_INFO(fmt::format("Received Message: {}",message->data_str()));
+  KeyValueStore::Command command = ParseMessage(message->data());
   switch (command.type) {
-    case Command::CommandType::PutEntry: {
-      PutEntry(command.key, command.value);
-      client->SendMessage("[" + command.key + ":" + GetEntry(command.key) + "]\n");
+    case KeyValueStore::Command::CommandType::PutEntry: {
+      store_->PutEntry(command.key, command.value);
+      client->SendMessage("[" + command.key + ":" + store_->GetEntry(command.key) + "]\n");
       break;
     }
-    case Command::CommandType::GetEntry: {
-      client->SendMessage(GetEntry(command.key) + "\n");
+    case KeyValueStore::Command::CommandType::GetEntry: {
+      client->SendMessage(store_->GetEntry(command.key) + "\n");
       break;
     }
-    case Command::CommandType::Close: {
+    case KeyValueStore::Command::CommandType::Close: {
       client->SendMessage("closed_by-> " + Name());
       return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     }
@@ -54,7 +51,7 @@ KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
 }
 
 
-KeyValueStoreApp::Command KeyValueStoreApp::ParseMessage(char *message_str) {
+KeyValueStore::Command KeyValueStoreApp::ParseMessage(char *message_str) {
   // Extract as a util class Tokenizer with following method
   // get_next_token, reset_iterator, get_first, get_last etc..
   std::vector<std::string> tokens;
@@ -82,7 +79,7 @@ KeyValueStoreApp::Command KeyValueStoreApp::ParseMessage(char *message_str) {
   };
 
   std::string command;
-  if (!get_next_token(command)) return Command();
+  if (!get_next_token(command)) return KeyValueStore::Command();
   if (command == "put") {
     std::string key, value;
     if (get_next_token(key) && get_next_token(value)) {
@@ -90,42 +87,15 @@ KeyValueStoreApp::Command KeyValueStoreApp::ParseMessage(char *message_str) {
       while (get_next_token(temp)) {
         value += " " + temp;
       }
-      return Command(Command::CommandType::PutEntry, key, value);
+      return KeyValueStore::Command(KeyValueStore::Command::CommandType::PutEntry, key, value);
     }
   } else if (command == "get") {
     std::string key;
     if (get_next_token(key)) {
-      return Command(Command::CommandType::GetEntry, key);
+      return KeyValueStore::Command(KeyValueStore::Command::CommandType::GetEntry, key);
     }
   } else if (command == "close") {
-    return Command(Command::CommandType::Close);
+    return KeyValueStore::Command(KeyValueStore::Command::CommandType::Close);
   }
-  return Command();
-}
-
-
-std::string KeyValueStoreApp::GetEntry(std::string key) {
-  // Could improve locking here only on the key.
-  store_lock_.lock();
-  std::string value = "KeyNotFound: " + key;
-  auto it = store_.find(key);
-  if (it!=store_.end()) {
-    value = it->second;
-    PRINT_THREAD_ID std::cout << "GetEntry [key: " << key << "] "
-                              << "=> [value: " << value << "]" << std::endl;
-  } else {
-    PRINT_THREAD_ID std::cout << "GetEntry [key: " << key << "] "
-                              << "=> " << value << std::endl;
-  }
-  store_lock_.unlock();
-  return value;
-}
-
-void KeyValueStoreApp::PutEntry(std::string key, std::string value) {
-  // Could improve locking here only on the key.
-  store_lock_.lock();
-  PRINT_THREAD_ID std::cout << "PutEntry [key: " << key
-                            << ", value: " << value << "]" << std::endl;
-  store_[key] = value;
-  store_lock_.unlock();
+  return KeyValueStore::Command();
 }
