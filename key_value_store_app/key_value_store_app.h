@@ -11,6 +11,7 @@
 #include <unordered_map>
 
 #include "../tcp_app_lib/tcp_server_app/tcp_server_app.h"
+#include "proto/key_value_store_app.pb.h"
 #include "key_value_store/key_value_store.h"
 #include "utils.h"
 
@@ -35,7 +36,7 @@ public:
         return kMessageBufferCapacity;
     }
 
-    KeyValueStore::Command ParseMessage(char* message_str);
+    key_value_store_app::KeyValueStoreAppCommand ParseMessage(char* message_str);
 
     tcp_util::ACTION_ON_CONNECTION HandleMessage(
             std::shared_ptr<TCPMessage> tcp_message) override;
@@ -45,6 +46,5 @@ private:
 };
 
 //-----------------
-
 
 #endif // KEY_VALUE_STORE_KEY_VALUE_STORE_APP_H
