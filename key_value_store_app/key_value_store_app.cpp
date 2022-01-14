@@ -9,7 +9,11 @@
 
 #include "../third_party/spdlog/include/spdlog/spdlog.h"
 #include "../tcp_app_lib/tcp_utils/tcp_utils.h"
+#include "proto/key_value_store_app.pb.h"
 #include "key_value_store_app.h"
+
+using key_value_store_app::KeyValueStoreAppCommand;
+using key_value_store_app::KeyValueStoreAppCommandType;
 
 KeyValueStoreApp::KeyValueStoreApp(
     std::string name,
@@ -28,32 +32,35 @@ KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
   auto message = request->message();
   auto client = request->sender();
   SPDLOG_INFO(fmt::format("Received Message: {}",message->data_str()));
-  KeyValueStore::Command command = ParseMessage(message->data());
-  switch (command.type) {
-    case KeyValueStore::Command::CommandType::PutEntry: {
-      store_->PutEntry(command.key, command.value);
-      client->SendMessage("[" + command.key + ":" + store_->GetEntry(command.key) + "]\n");
+  KeyValueStoreAppCommand command;
+  command.ParseFromString(message->data());
+  SPDLOG_INFO(fmt::format("Received Command: [{}]",command.ShortDebugString()));
+  switch (command.type()) {
+    case KeyValueStoreAppCommandType::PutEntry: {
+      store_->PutEntry(command.key(), command.value());
+      client->SendMessage("[" + command.key() + ":" + store_->GetEntry(command.key()) + "]\n");
       break;
     }
-    case KeyValueStore::Command::CommandType::GetEntry: {
-      client->SendMessage(store_->GetEntry(command.key) + "\n");
+    case KeyValueStoreAppCommandType::GetEntry: {
+      client->SendMessage(store_->GetEntry(command.key()) + "\n");
       break;
     }
-    case KeyValueStore::Command::CommandType::Close: {
-      client->SendMessage("closed_by-> " + Name());
-      return tcp_util::ACTION_ON_CONNECTION::CLOSE;
+    case KeyValueStoreAppCommandType::Close: {
+        client->SendMessage("closed_by-> " + Name());
+        return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     }
     default: {
-        client->SendMessage("Invalid result\n");
+        client->SendMessage("Invalid request.");
     }
   }
   return tcp_util::ACTION_ON_CONNECTION::KEEP_OPEN;
 }
 
 
-KeyValueStore::Command KeyValueStoreApp::ParseMessage(char *message_str) {
+KeyValueStoreAppCommand KeyValueStoreApp::ParseMessage(char *message_str) {
   // Extract as a util class Tokenizer with following method
   // get_next_token, reset_iterator, get_first, get_last etc..
+  KeyValueStoreAppCommand keyValueStoreAppCommand;
   std::vector<std::string> tokens;
   std::function<void(char*, const char*, std::vector<std::string>&)>
       tokenize = [] (char* text, const char* delimeter,
@@ -79,7 +86,7 @@ KeyValueStore::Command KeyValueStoreApp::ParseMessage(char *message_str) {
   };
 
   std::string command;
-  if (!get_next_token(command)) return KeyValueStore::Command();
+  if (!get_next_token(command)) return keyValueStoreAppCommand;
   if (command == "put") {
     std::string key, value;
     if (get_next_token(key) && get_next_token(value)) {
@@ -87,15 +94,20 @@ KeyValueStore::Command KeyValueStoreApp::ParseMessage(char *message_str) {
       while (get_next_token(temp)) {
         value += " " + temp;
       }
-      return KeyValueStore::Command(KeyValueStore::Command::CommandType::PutEntry, key, value);
+      keyValueStoreAppCommand.set_type(KeyValueStoreAppCommandType::PutEntry);
+      keyValueStoreAppCommand.set_key(key);
+      keyValueStoreAppCommand.set_value(value);
     }
   } else if (command == "get") {
     std::string key;
     if (get_next_token(key)) {
-      return KeyValueStore::Command(KeyValueStore::Command::CommandType::GetEntry, key);
+        keyValueStoreAppCommand.set_type(KeyValueStoreAppCommandType::PutEntry);
+        keyValueStoreAppCommand.set_key(key);
     }
   } else if (command == "close") {
-    return KeyValueStore::Command(KeyValueStore::Command::CommandType::Close);
+    keyValueStoreAppCommand.set_type(KeyValueStoreAppCommandType::Close);
+  } else {
+      keyValueStoreAppCommand.set_type(KeyValueStoreAppCommandType::Unknown);
   }
-  return KeyValueStore::Command();
+  return keyValueStoreAppCommand;
 }

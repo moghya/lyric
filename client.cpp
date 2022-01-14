@@ -11,7 +11,8 @@ const unsigned int PORT = 8081;
 
 int main() {
     auto client = std::make_shared<KeyValueStoreAppClient>("my_client", "127.0.0.1", PORT, 1);
-    auto message = client->Execute("put hi hello");
-    std::cout << message->data() << "\n";
+    std::cout << client->GetEntry("hi") << "\n";
+    std::cout << client->PutEntry("hi","hello") << "\n";
+    std::cout << client->GetEntry("hi") << "\n";
     return 0;
 }

@@ -16,6 +16,8 @@ public:
                            unsigned int numberOfConnections);
     ~KeyValueStoreAppClient();
     std::unique_ptr<Message> Execute(std::string input_command);
+    std::string GetEntry(std::string key);
+    std::string PutEntry(std::string key, std::string value);
 };
 
 
