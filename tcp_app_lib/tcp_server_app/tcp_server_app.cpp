@@ -32,3 +32,7 @@ TCPServerApp::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
 void TCPServerApp::Start() {
     server_->StartListening();
 }
+
+void TCPServerApp::Stop() {
+    server_->StopListening();
+}

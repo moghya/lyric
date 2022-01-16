@@ -31,6 +31,7 @@ public:
             std::shared_ptr<TCPMessage> tcp_message);
 
     void Start();
+    void Stop();
 protected:
     std::string name_;
     std::shared_ptr<TCPServer> server_;

@@ -17,7 +17,7 @@
 class Message {
 public:
     Message(size_t buffer_capacity);
-    Message(const std::string& message_data);
+    Message(const std::string message_data);
     Message(Message&& message);
     ~Message();
     char* data() const;
@@ -27,11 +27,11 @@ public:
     void set_length(size_t length);
     size_t length() const;
     size_t buffer_capacity() const;
-    void AppendNewLine();
+    void reset_buffer(size_t buffer_capacity);
 private:
-    size_t buffer_capacity_;
-    size_t length_;
-    char* data_;
+    size_t buffer_capacity_ = 0;
+    size_t length_ = 0;
+    char* data_ = nullptr;
 };
 
 #endif//KEY_VALUE_STORE_MESSAGE_H
