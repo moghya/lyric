@@ -4,6 +4,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <errno.h>
 #include <iostream>
 #include <netinet/in.h>
 #include <string>
@@ -33,10 +34,10 @@ TCPClient::TCPClient(std::string dest_ip_address,
     // make a socket:
     sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (sockfd < 0) {
-        SPDLOG_INFO("did not get sockfd");
+        SPDLOG_ERROR(fmt::format("Could not get socket, error: {}, errorno: {}", strerror(errno), errno));
     }
     if(connect(sockfd, res->ai_addr, res->ai_addrlen) < 0 ) {
-        SPDLOG_INFO("could not connect");
+        SPDLOG_ERROR(fmt::format("Could not connect, error: {}, errorno: {}", strerror(errno), errno));
     }
     connection_ = std::make_shared<TCPConnection>(res->ai_addr, sockfd);
 }
