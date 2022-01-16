@@ -14,9 +14,7 @@ add_subdirectory(key_value_store)
 add_subdirectory(app)
 add_subdirectory(client)
 
-add_library(key_value_store_app_client
-            key_value_store_app_client.cpp
-            utils.cpp)
-target_link_libraries(key_value_store_app_client key_value_store_app_proto)
-target_link_libraries(key_value_store_app_client tcp_utils)
-target_link_libraries(key_value_store_app_client tcp_server_app_client)
+add_executable(key_value_store_app_tester key_value_store_app_test.cpp)
+target_link_libraries(key_value_store_app_tester spdlog::spdlog_header_only)
+target_link_libraries(key_value_store_app_tester key_value_store_app)
+target_link_libraries(key_value_store_app_tester key_value_store_app_client)

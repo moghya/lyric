@@ -9,7 +9,6 @@
 #include <sys/select.h>
 #include <thread>
 
-#include "../../third_party/asyncplusplus/include/async++.h"
 #include "../../third_party/spdlog/include/spdlog/spdlog.h"
 
 #include "tcp_server.h"
@@ -66,7 +65,7 @@ bool TCPServer::BindAndListen() {
 void TCPServer::AcceptConnections() {
   fd_set read_fd_set;
   fd_set error_fd_set;
-  struct timeval select_wait_time{2,0};
+  struct timeval select_wait_time{5,0};
   while (is_on_) {
     PopulateFdSetWithConnectedClients(read_fd_set);
     PopulateFdSetWithConnectedClients(error_fd_set);
@@ -111,10 +110,9 @@ void TCPServer::AcceptConnections() {
       }
     }
     active_clients_map_lock_.unlock();
-    async::parallel_for(readable_clients,
-                        [this](std::shared_ptr<TCPConnection> client) {
-        this->AcceptMessage(client, false);
-    });
+    for(auto client : readable_clients) {
+        this->AcceptMessage(client);
+    }
     readable_clients.clear();
   }
   SPDLOG_INFO("Server is not on, shutting down...");
@@ -138,7 +136,7 @@ void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_
   if (!spawn_thread) {
       message_handler();
   } else {
-      tcp_util::SpawnThread(std::move(message_handler));
+      tcp_util::SpawnThread(std::move(message_handler), false);
   }
 }
 
