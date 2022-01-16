@@ -7,6 +7,10 @@
 
 #include <cstddef>
 
-static const size_t kMessageBufferCapacity = 512;
+namespace utils {
+    const size_t kMessageBufferCapacity = 512;
+
+    const size_t GetMessageBufferCapacity();
+}
 
 #endif//KEY_VALUE_STORE_UTILS_H

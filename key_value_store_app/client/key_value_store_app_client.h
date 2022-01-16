@@ -6,7 +6,7 @@
 #define KEY_VALUE_STORE_KEYVALUESTOREAPPCLIENT_H
 
 
-#include "../tcp_app_lib/tcp_server_app_client/tcp_server_app_client.h"
+#include "../../tcp_app_lib/tcp_server_app_client/tcp_server_app_client.h"
 
 class KeyValueStoreAppClient : public TCPServerAppClient {
 public:

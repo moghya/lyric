@@ -7,10 +7,10 @@
 #include <string>
 #include <vector>
 
-#include "../third_party/spdlog/include/spdlog/spdlog.h"
-#include "../tcp_app_lib/tcp_utils/tcp_utils.h"
-#include "proto/key_value_store_app.pb.h"
+#include "../../tcp_app_lib/tcp_utils/tcp_utils.h"
 #include "key_value_store_app.h"
+#include "proto/key_value_store_app.pb.h"
+#include "spdlog/spdlog.h"
 
 using key_value_store_app::KeyValueStoreAppCommand;
 using key_value_store_app::KeyValueStoreAppCommandType;
@@ -38,11 +38,15 @@ KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
   switch (command.type()) {
     case KeyValueStoreAppCommandType::PutEntry: {
       store_->PutEntry(command.key(), command.value());
-      client->SendMessage("[" + command.key() + ":" + store_->GetEntry(command.key()) + "]\n");
+      auto response = fmt::format("[{}:{}]", command.key(), store_->GetEntry(command.key()));
+      SPDLOG_INFO("Sending: " + response);
+      client->SendMessage(response);
       break;
     }
     case KeyValueStoreAppCommandType::GetEntry: {
-      client->SendMessage(store_->GetEntry(command.key()) + "\n");
+      auto value = store_->GetEntry(command.key());
+      SPDLOG_INFO("Sending: " + value);
+      client->SendMessage(value);
       break;
     }
     case KeyValueStoreAppCommandType::Close: {

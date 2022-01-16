@@ -37,7 +37,7 @@ std::string KeyValueStore::GetEntry(std::string key) {
 void KeyValueStore::PutEntry(std::string key, std::string value) {
     // Could improve locking here only on the key.
     key_value_map_guard_.lock();
-    SPDLOG_INFO(fmt::format("GetEntry [key: {}] => [value: {}]", key, value));
+    SPDLOG_INFO(fmt::format("PutEntry [key: {}] => [value: {}]", key, value));
     key_value_map_[key] = value;
     key_value_map_guard_.unlock();
 }
