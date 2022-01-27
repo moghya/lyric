@@ -40,7 +40,7 @@ public:
 private:
     struct sockaddr* address_;
     socklen_t* address_length_;
-    unsigned int socket_fd_;
+    int socket_fd_ = -1;
 };
 
 

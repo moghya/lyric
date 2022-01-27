@@ -31,11 +31,16 @@ public:
         return std::move(connection_->ReceiveMessage(buffer_capacity));
     }
 
+    int sock_fd() const {
+        return sock_fd_;
+    }
+
 private:
     std::string dest_ip_address_;
     unsigned int dest_port_;
     std::string name_;
     std::shared_ptr<TCPConnection> connection_;
+    int sock_fd_ = -1;
 };
 
 

@@ -16,7 +16,7 @@ public:
         return fd_;
     }
 private:
-    unsigned int fd_;
+    int fd_ = -1;
 };
 
 
