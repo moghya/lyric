@@ -68,14 +68,14 @@ void TestKeyValueStoreAppAndClient() {
         }
     };
 
-    int number_of_clients = 130;
+    int number_of_clients = 500;
     auto run_app_thread = std::thread(app_setup_info.start_cb);
     run_app_thread.detach();
     std::vector<std::thread> threads;
     for(int i=0; i<number_of_clients; i++) {
         threads.push_back(std::move(std::thread(client_perform_read_write_cb, i)));
     }
-    for (auto &&t : threads) {
+    for (auto&& t : threads) {
         t.join();
     }
     app_setup_info.stop_cb();
@@ -84,8 +84,6 @@ void TestKeyValueStoreAppAndClient() {
 
 int main() {
     spdlog::set_pattern("[%l] [%n] [%A-%d-%m-%Y] [%H:%M:%S] [%z] [%t] %s:%# %v");
-//    for(int i = 0; i < 10; ++i) {
-        TestKeyValueStoreAppAndClient();
-//    }
+    TestKeyValueStoreAppAndClient();
     return 0;
 }
