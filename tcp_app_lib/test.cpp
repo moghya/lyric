@@ -7,7 +7,6 @@
 #include "tcp_server/tcp_server.h"
 
 #include "../third_party/spdlog/include/spdlog/spdlog.h"
-#include "../third_party/asyncplusplus/include/async++.h"
 
 struct TCPServerSetupInfo {
     unsigned int port;
@@ -23,8 +22,11 @@ TCPServerSetupInfo GetTCPServerSetup() {
         SPDLOG_INFO(fmt::format("Received message:{} from:{}",
                      tcp_message->message()->data(),
                      tcp_message->sender()->socket_fd()));
-        tcp_message->sender()->SendMessage("Thanks for message, << " +
-                                           tcp_message->message()->data_str() + " >>. Bye :)");
+        bool replied = tcp_message->sender()->SendMessage("Thanks for your message: " +
+                                           tcp_message->message()->data_str() + ". Bye :)");
+        if (!replied) {
+            SPDLOG_ERROR(fmt::format("Failed in replying to client: {}", tcp_message->sender()->socket_fd()));
+        }
         return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     };
 
@@ -41,24 +43,42 @@ TCPServerSetupInfo GetTCPServerSetup() {
 
 void TestTCPClientAndTCPServer() {
     auto server = GetTCPServerSetup();
-    std::function<void(int)> connect_client_cb = [port  = server.port](int index) mutable {
+    SPDLOG_INFO(fmt::format("PORT: {}", server.port));
+    std::atomic<int> test_pass_count(0);
+    std::atomic<int> test_fail_count(0);
+
+    std::function<void(int)> connect_client_cb =
+        [port  = server.port, &test_pass_count, &test_fail_count] (int index) mutable {
         TCPClient client("127.0.0.1", port, "client_0");
         std::string msg_str = "Hello World__" + std::to_string(index);
         SPDLOG_INFO(fmt::format("Sending message: {}", msg_str));
         if (client.SendMessage(msg_str)) {
             auto message = client.ReceiveMessage(512);
-            SPDLOG_INFO(fmt::format("Received message: {}", message->data()));
+            if (message) {
+                test_pass_count++;
+                SPDLOG_INFO(fmt::format("Received message: {}", message->data()));
+            } else {
+                SPDLOG_ERROR("Could not receive message.");
+                test_fail_count++;
+            }
         } else {
-            throw std::string("Could not send message.");
+            SPDLOG_ERROR("Could not send message.");
+            test_fail_count++;
         }
     };
-    int number_of_calls = 1000;
-    auto start_clients_cb = [number_of_calls, connect_client_cb]() {
-        async::parallel_for(async::irange(0, number_of_calls), connect_client_cb);
-    };
+    int number_of_calls = 500;
+    auto run_server_thread = std::thread(server.start_cb);
+    run_server_thread.detach();
 
-    async::spawn(server.start_cb);
-    async::spawn(start_clients_cb).then(server.stop_cb);
+    std::vector<std::thread> client_threads;
+    for(int i=0; i < number_of_calls; i++) {
+        client_threads.push_back(std::move(std::thread(connect_client_cb, i)));
+    }
+    for (auto&& t : client_threads) {
+        t.join();
+    }
+    server.stop_cb();
+    SPDLOG_INFO(fmt::format("Total: {}, Passed: {}. Failed: {}", number_of_calls, test_pass_count, test_fail_count));
 }
 
 int main() {
