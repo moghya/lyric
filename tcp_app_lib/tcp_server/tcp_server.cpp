@@ -2,6 +2,7 @@
 // Created by Shubham Sawant on 30/06/21.
 //
 
+#include <errno.h>
 #include <iostream>
 #include <memory>
 #include <set>
@@ -30,6 +31,7 @@ TCPServer::TCPServer(unsigned int port,
 }
 
 TCPServer::~TCPServer() {
+    SPDLOG_INFO("Destroying server");
 }
 
 void TCPServer::StartListening() {
@@ -77,7 +79,8 @@ void TCPServer::AcceptConnections() {
     int select_ret = select(FD_SETSIZE, &read_fd_set, NULL,
                             &error_fd_set, &select_wait_time);
     if (select_ret < 0) {
-      SPDLOG_ERROR("Error in select. Shutting down...");
+      SPDLOG_ERROR(fmt::format("select failed: {}. Shutting down.",  tcp_util::Error(errno).to_string()));
+      StopListening();
       return;
     }
 
@@ -111,6 +114,8 @@ void TCPServer::AcceptConnections() {
     }
     active_clients_map_lock_.unlock();
     for(auto client : readable_clients) {
+        RemoveFromActiveClients(client);
+        AddToHandlingClients(client);
         this->AcceptMessage(client);
     }
     readable_clients.clear();
@@ -129,14 +134,15 @@ void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
 }
 
 void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_thread) {
-  SPDLOG_INFO(fmt::format("Accepting message from sender socket_fd: {}", client->socket_fd()));
+  auto client_socket_fd = client->socket_fd();
+  SPDLOG_INFO(fmt::format("Accepting message from sender socket_fd: {}", client_socket_fd));
   auto message_handler = [this, client = std::move(client)]() {
     HandleMessage(GetMessage(std::move(client)));
   };
   if (!spawn_thread) {
       message_handler();
   } else {
-      tcp_util::SpawnThread(std::move(message_handler), false);
+     auto t = tcp_util::SpawnThread(std::move(message_handler), false);
   }
 }
 
@@ -151,7 +157,8 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
     SPDLOG_ERROR("Invalid sender socket fd");
     return nullptr;
   }
-  AddToActiveClient(client_socket_fd, client);
+  client->set_socket_fd(client_socket_fd);
+  AddToActiveClients(client);
   SPDLOG_INFO(fmt::format("Connection accepted on socket_fd: {}", client->socket_fd()));
   return client;
 }
@@ -168,7 +175,7 @@ std::shared_ptr<TCPMessage> TCPServer::GetMessage(
 void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
   auto client = tcp_message->sender();
   if (!tcp_message->message()) {
-      RemoveFromActiveClients(client);
+      RemoveFromHandlingClients(client);
       SPDLOG_ERROR(fmt::format("Connection lost from socket_fd: {}", client->socket_fd()));
       return;
   }
@@ -178,10 +185,12 @@ void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
                              client->socket_fd(),
                              tcp_message->message()->data_str()));
     auto action_to_take = message_handler_(tcp_message);
+    RemoveFromHandlingClients(client);
     if (action_to_take == tcp_util::ACTION_ON_CONNECTION::CLOSE) {
       SPDLOG_INFO(fmt::format("Closing client socket_fd: {}", client->socket_fd()));
-      RemoveFromActiveClients(client);
+      return;
     }
+    AddToActiveClients(client);
   } catch(std::exception exp) {
     std::cerr << "failed to execute [OnMessage] function";
   }

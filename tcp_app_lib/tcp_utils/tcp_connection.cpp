@@ -28,6 +28,7 @@ TCPConnection::TCPConnection(struct sockaddr* address,
 TCPConnection::~TCPConnection() {
     free(address_);
     free(address_length_);
+    if (socket_fd_ >= 0) close(socket_fd_);
 }
 
 struct sockaddr* TCPConnection::address() const {

@@ -41,19 +41,29 @@ protected:
     std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection> client);
     void HandleMessage(std::shared_ptr<TCPMessage> message);
 private:
-  void AddToActiveClient(unsigned int client_socket_fd,
-                         std::shared_ptr<TCPConnection> client) {
-    client->set_socket_fd(client_socket_fd);
-    active_clients_map_.insert({client_socket_fd, client});
+  void AddToActiveClients(std::shared_ptr<TCPConnection> client) {
+    active_clients_map_lock_.lock();
+    active_clients_map_.insert({client->socket_fd(), client});
+    active_clients_map_lock_.unlock();
   }
 
   void RemoveFromActiveClients(std::shared_ptr<TCPConnection> client) {
-    close(client->socket_fd());
     active_clients_map_lock_.lock();
     active_clients_map_.erase(client->socket_fd());
     active_clients_map_lock_.unlock();
   }
 
+  void AddToHandlingClients(std::shared_ptr<TCPConnection> client) {
+    handling_clients_map_lock_.lock();
+    handling_clients_map_.insert({client->socket_fd(), client});
+    handling_clients_map_lock_.unlock();
+  }
+
+  void RemoveFromHandlingClients(std::shared_ptr<TCPConnection> client) {
+    handling_clients_map_lock_.lock();
+    handling_clients_map_.erase(client->socket_fd());
+    handling_clients_map_lock_.unlock();
+  }
 private:
   unsigned int port_;
   TCPMessage::Handler message_handler_;
@@ -68,6 +78,10 @@ private:
   std::unordered_map<unsigned int, std::shared_ptr<TCPConnection>>
       active_clients_map_;
   std::mutex active_clients_map_lock_;
+
+  std::unordered_map<unsigned int, std::shared_ptr<TCPConnection>>
+      handling_clients_map_;
+  std::mutex handling_clients_map_lock_;
 
   fd_set active_clients_fd_set_;
   bool is_on_ = false;
