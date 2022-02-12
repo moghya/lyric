@@ -36,7 +36,7 @@ public:
         return utils::GetMessageBufferCapacity();
     }
 
-    key_value_store_app::KeyValueStoreAppCommand ParseMessage(char* message_str);
+    KeyValueStoreAppProto::Command ParseMessage(char* message_str);
 
     tcp_util::ACTION_ON_CONNECTION HandleMessage(
             std::shared_ptr<TCPMessage> tcp_message) override;
