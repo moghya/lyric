@@ -5,7 +5,7 @@
 
 #include <memory>
 
-
+#define SPDLOG_ACTIVE_LEVEL SPDLOG_LEVEL_TRACE
 #include "../third_party/spdlog/include/spdlog/spdlog.h"
 
 #include "app/key_value_store_app.h"
@@ -75,7 +75,7 @@ void TestKeyValueStoreAppAndClient() {
     for(int i=0; i<number_of_clients; i++) {
         threads.push_back(std::move(std::thread(client_perform_read_write_cb, i)));
     }
-    for (auto&& t : threads) {
+    for (auto& t : threads) {
         t.join();
     }
     app_setup_info.stop_cb();
@@ -83,6 +83,7 @@ void TestKeyValueStoreAppAndClient() {
 }
 
 int main() {
+    spdlog::set_level(spdlog::level::trace);
     spdlog::set_pattern("[%l] [%n] [%A-%d-%m-%Y] [%H:%M:%S] [%z] [%t] %s:%# %v");
     TestKeyValueStoreAppAndClient();
     return 0;

@@ -1,15 +1,15 @@
 syntax = "proto2";
-package key_value_store_app;
+package KeyValueStoreAppProto;
 
-enum KeyValueStoreAppCommandType {
+enum CommandType {
   Unknown = 0;
   GetEntry = 1;
   PutEntry = 2;
   Close = 3;
 }
 
-message KeyValueStoreAppCommand {
-  required KeyValueStoreAppCommandType type = 1;
+message Command {
+  required CommandType type = 1;
   optional string key = 2;
   optional string value = 3;
 }
