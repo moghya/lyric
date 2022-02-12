@@ -22,10 +22,12 @@ TCPServerSetupInfo GetTCPServerSetup() {
         SPDLOG_INFO(fmt::format("Received message:{} from:{}",
                      tcp_message->message()->data(),
                      tcp_message->sender()->socket_fd()));
-        bool replied = tcp_message->sender()->SendMessage("Thanks for your message: " +
-                                           tcp_message->message()->data_str() + ". Bye :)");
-        if (!replied) {
-            SPDLOG_ERROR(fmt::format("Failed in replying to client: {}", tcp_message->sender()->socket_fd()));
+        auto send_res = tcp_message->sender()->SendMessage("Thanks for your message: " +
+                                                            tcp_message->message()->data_str() + ". Bye :)");
+        if (!send_res.success_) {
+            SPDLOG_ERROR(fmt::format("Failed in replying to client: {} due to error: {}",
+                                     tcp_message->sender()->socket_fd(),
+                                     send_res.error_.to_string()));
         }
         return tcp_util::ACTION_ON_CONNECTION::CLOSE;
     };
@@ -52,11 +54,12 @@ void TestTCPClientAndTCPServer() {
         TCPClient client("127.0.0.1", port, "client_0");
         std::string msg_str = "Hello World__" + std::to_string(index);
         SPDLOG_INFO(fmt::format("Sending message: {}", msg_str));
-        if (client.SendMessage(msg_str)) {
-            auto message = client.ReceiveMessage(512);
-            if (message) {
+        auto send_res = client.SendMessage(msg_str);
+        if (send_res.success_) {
+            auto recv_res = client.ReceiveMessage(512);
+            if (recv_res.success_) {
                 test_pass_count++;
-                SPDLOG_INFO(fmt::format("Received message: {}", message->data()));
+                SPDLOG_INFO(fmt::format("Received message: {}", rec_res.result_->data()));
             } else {
                 SPDLOG_ERROR("Could not receive message.");
                 test_fail_count++;

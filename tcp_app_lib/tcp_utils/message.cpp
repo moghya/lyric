@@ -2,7 +2,7 @@
 // Created by Shubham Sawant on 16/12/21.
 //
 
-#include <iostream>
+#include <cstring>
 #include <string>
 
 #include "message.h"
@@ -17,7 +17,7 @@ Message::Message(const std::string message_data) {
 }
 
 Message::~Message() {
-    delete data_;
+     free(data_);
 }
 
 char* Message::data() const {
@@ -69,9 +69,9 @@ Message::Message(Message&& message) {
 }
 
 void Message::reset_buffer(size_t buffer_capacity) {
-    if(data_) delete data_;
+    free(data_);
     length_ = 0;
     buffer_capacity_ = buffer_capacity;
-    data_ = new char[buffer_capacity_];
+    data_ = (char*)malloc(buffer_capacity_*sizeof(char));
     memset(data_,0,buffer_capacity_*sizeof(char));
 }

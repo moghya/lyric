@@ -23,16 +23,14 @@ public:
         return name_;
     }
 
-    bool SendMessage(std::string message) const {
+    tcp_util::OperationResult<int>
+    SendMessage(std::string message) const {
         return connection_->SendMessage(message);
     }
 
-    std::unique_ptr<Message> ReceiveMessage(size_t buffer_capacity) const {
+    tcp_util::OperationResult<std::unique_ptr<Message>>
+    ReceiveMessage(size_t buffer_capacity) const {
         return std::move(connection_->ReceiveMessage(buffer_capacity));
-    }
-
-    int sock_fd() const {
-        return sock_fd_;
     }
 
 private:
@@ -40,7 +38,6 @@ private:
     unsigned int dest_port_;
     std::string name_;
     std::shared_ptr<TCPConnection> connection_;
-    int sock_fd_ = -1;
 };
 
 
