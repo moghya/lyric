@@ -150,11 +150,11 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
   SPDLOG_INFO("Accepting new connection");
   auto client = std::make_shared<TCPConnection>();
   // Initialize sender address struct and accept new connection
-  unsigned int client_socket_fd = accept(socket_.fd(),
+  int client_socket_fd = accept(socket_.fd(),
                                          client->address(),
                                          client->address_length_ptr());
-  if (client_socket_fd == -1) {
-    SPDLOG_ERROR("Invalid sender socket fd");
+  if (client_socket_fd < 0) {
+      SPDLOG_ERROR(fmt::format("accept failed: {}", tcp_util::Error(errno).to_string()));
     return nullptr;
   }
   client->set_socket_fd(client_socket_fd);
@@ -166,9 +166,9 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
 std::shared_ptr<TCPMessage> TCPServer::GetMessage(
     std::shared_ptr<TCPConnection> client) {
   if (!client) return nullptr;
-  auto message = std::move(client->ReceiveMessage(message_buffer_size_));
-  if (message) message->put_data(message->length(),0);
-  auto tcp_message = std::make_shared<TCPMessage>(client, std::move(message));
+  auto res = client->ReceiveMessage(message_buffer_size_);
+  if(res.result_) res.result_->put_data(res.result_->length(), 0);
+  auto tcp_message = std::make_shared<TCPMessage>(client, std::move(res.result_));
   return tcp_message;
 }
 
@@ -176,7 +176,7 @@ void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
   auto client = tcp_message->sender();
   if (!tcp_message->message()) {
       RemoveFromHandlingClients(client);
-      SPDLOG_ERROR(fmt::format("Connection lost from socket_fd: {}", client->socket_fd()));
+      SPDLOG_INFO(fmt::format("Connection removed from socket_fd: {}", client->socket_fd()));
       return;
   }
 
@@ -192,6 +192,6 @@ void TCPServer::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
     }
     AddToActiveClients(client);
   } catch(std::exception exp) {
-    std::cerr << "failed to execute [OnMessage] function";
+      SPDLOG_ERROR("failed to execute [OnMessage] function: ", exp.what());
   }
 }

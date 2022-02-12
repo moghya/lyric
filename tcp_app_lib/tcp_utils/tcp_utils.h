@@ -20,58 +20,96 @@
              << "\t"; \
   } while(false); \
 
+#define GET_SOCKET_ERROR Error(errno, strerror(errno));
+
 namespace tcp_util {
     enum ACTION_ON_CONNECTION {
         KEEP_OPEN,
         CLOSE,
     };
 
+    enum ErrorType {
+        kNoError = 0,
+        kUnknown = 1,
+        kBrokenPipe = 2,
+        kBadFileDescriptor = 3,
+        kDisconnectedConnection = 4,
+        kTimeout = 5,
+    };
+
+    static ErrorType GetErrorTypeFromErrorNo(int error_no) {
+        switch(error_no) {
+            case ErrorType::kNoError:     return ErrorType::kNoError;
+            case EPIPE: return ErrorType::kBrokenPipe;
+            case EBADF: return ErrorType::kBadFileDescriptor;
+        }
+        return ErrorType::kUnknown;
+    }
+
     class Error {
         public:
-            Error(int err_no) :
-               err_no_(err_no),
-               err_msg_(strerror(err_no_)) {
-                str_rep_ = "<<Err::"+std::to_string(err_no_)+"::"+err_msg_+">>";
+            Error(int err_no = ErrorType::kNoError, std::string err_msg = "") :
+                type_(tcp_util::GetErrorTypeFromErrorNo(err_no)),
+                msg_(err_msg) {
             }
             ~Error() {}
              std::string to_string() const {
-                return str_rep_;
+                return "<<Err::"+std::to_string(type_)+"::"+msg_+">>";
              }
+             const tcp_util::ErrorType type() const {
+                 return type_;
+             }
+
         private:
-            int err_no_;
-            std::string err_msg_;
-            std::string str_rep_;
+            tcp_util::ErrorType type_;
+            std::string msg_;
     };
 
-    static std::unique_ptr<Message> receive_stream_message(unsigned int socket_fd,
-                                                           unsigned int buffer_size)
-    {
+    template<typename T>
+    struct OperationResult {
+        bool success_;
+        Error error_;
+        T result_;
+    };
+
+    static OperationResult<std::unique_ptr<Message>>
+    receive_stream_message(unsigned int socket_fd, unsigned int buffer_size) {
         auto message = std::make_unique<Message>(buffer_size);
         SPDLOG_DEBUG(fmt::format("Waiting to receive message on socket: {}", socket_fd));
         auto read_length = recv(socket_fd, (void *) message->data(), message->buffer_capacity(), 0 /* flags */);
-        if ( read_length < 0 ) {
-            SPDLOG_ERROR(fmt::format("recv failed: {} on socket: {}",  Error(errno).to_string(), socket_fd));
-            return nullptr;
-        }
-        if ( read_length == 0 ) {
-            SPDLOG_ERROR(fmt::format("Connection closed by peer on socket:{}",socket_fd));
-            return nullptr;
-        }
+
+        if (read_length < 0) {
+            auto err = GET_SOCKET_ERROR
+            SPDLOG_ERROR(fmt::format("recv failed: {} on socket: {}",  err.to_string(), socket_fd));
+            return {false, err, nullptr};
+        }else if (read_length == 0) {
+            auto err = Error(ErrorType::kDisconnectedConnection);
+            SPDLOG_INFO(fmt::format("Connection closed by peer on socket:{}",socket_fd));
+            return {false, err, nullptr};
+        } else {
+            SPDLOG_DEBUG("Read {} bytes.", read_length);
         message->set_length(read_length);
-        return message;
+            message->put_data(read_length,0);
+            return {true, Error(), std::move(message)};
+        }
     }
 
-    static size_t send_stream_message(unsigned int socket_fd,
-                                      std::unique_ptr<Message> message) {
+    static OperationResult<int>
+    send_stream_message(unsigned int socket_fd, std::unique_ptr<Message> message) {
         SPDLOG_DEBUG(fmt::format("Sending message: {} to socket: {}", message->data_str(), socket_fd));
         // TODO(moghya) : change this to check for size returned and handle errors set if any.
-        auto send_length = send(socket_fd, (void *) message->data(), message->length(), MSG_NOSIGNAL /* flags */);
-        if ( send_length <= 0 ) {
-            SPDLOG_ERROR(fmt::format("send failed: {} on socket: {}", Error(errno).to_string(), socket_fd));
-            return 0;
+        int send_length = send(socket_fd, (void *) message->data(), message->length(), MSG_NOSIGNAL /* flags */);
+        Error err(0);
+        bool success = true;
+        if (send_length <= 0) {
+            success = false;
+            err = GET_SOCKET_ERROR
+            SPDLOG_ERROR(fmt::format("send failed: {} on socket: {} for message: {}",
+                                     err.to_string(), socket_fd, message->data_str()));
+        } else {
+            SPDLOG_DEBUG(fmt::format("Sent {} bytes", send_length));
         }
-        SPDLOG_INFO(fmt::format("Sent {} bytes", send_length));
-        return send_length;
+        return {success, err, send_length};
     }
 
     static std::shared_ptr<const std::thread> SpawnThread(std::function<void()> cb, bool join_thread = true) {
