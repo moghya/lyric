@@ -10,6 +10,7 @@
 #include <memory>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "../tcp_utils/tcp_connection.h"
 #include "../tcp_utils/tcp_message.h"
@@ -35,9 +36,11 @@ public:
 protected:
     bool BindAndListen();
     void AcceptConnections();
+    void AcceptMessages();
+
     std::shared_ptr<TCPConnection> AcceptConnection();
-    void PopulateFdSetWithConnectedClients(fd_set& fd_set);
     void AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_thread = true);
+    void PopulateSetWithConnectedClients(std::unordered_set<unsigned int>& fd_set);
     std::shared_ptr<TCPMessage> GetMessage(std::shared_ptr<TCPConnection> client);
     void HandleMessage(std::shared_ptr<TCPMessage> message);
 private:
@@ -83,7 +86,6 @@ private:
       handling_clients_map_;
   std::mutex handling_clients_map_lock_;
 
-  fd_set active_clients_fd_set_;
   bool is_on_ = false;
 };
 

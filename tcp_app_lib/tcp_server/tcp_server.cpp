@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <sys/select.h>
 #include <thread>
+#include <unordered_set>
 
 #include "../../third_party/spdlog/include/spdlog/spdlog.h"
 
@@ -39,6 +40,7 @@ void TCPServer::StartListening() {
   if (!BindAndListen()) {
     return;
   }
+  tcp_util::SpawnThread([this](){AcceptMessages();}, false);
   AcceptConnections();
 }
 
@@ -65,72 +67,63 @@ bool TCPServer::BindAndListen() {
 //-----------------------------------------------
 
 void TCPServer::AcceptConnections() {
-  fd_set read_fd_set;
-  fd_set error_fd_set;
   struct timeval select_wait_time{5,0};
   while (is_on_) {
-    PopulateFdSetWithConnectedClients(read_fd_set);
-    PopulateFdSetWithConnectedClients(error_fd_set);
-
-    // Add server's socket_fd to read_fd_set for accepting new connections.
-    FD_SET(socket_.fd(), &read_fd_set);
-
-    SPDLOG_INFO("Finding readable socket_fds...");
-    int select_ret = select(FD_SETSIZE, &read_fd_set, NULL,
-                            &error_fd_set, &select_wait_time);
-    if (select_ret < 0) {
-      SPDLOG_ERROR(fmt::format("select failed: {}. Shutting down.",  tcp_util::Error(errno).to_string()));
-      StopListening();
-      return;
-    }
-
-    if (select_ret == 0) {
-        SPDLOG_INFO("Hit select timeout, continuing...");
-        continue;
-    }
-
-    // Check if server_socket_fd_ is readable to accept new connection.
-    if (FD_ISSET(socket_.fd(), &read_fd_set)) {
-      SPDLOG_INFO("New connection available!");
+      std::unordered_set<unsigned int> read_fds{socket_.fd()};
+      auto select_res = tcp_util::get_readable_fds_using_select(read_fds, &select_wait_time);
+      if (!select_res.success_) {
+          //TODO(moghya): Handle each error type separately.
+          SPDLOG_ERROR(fmt::format("Select readable fds failed due to error: {}", select_res.error_.to_string()));
+          continue;
+      }
       AcceptConnection();
-    }
-
-    std::set<std::shared_ptr<TCPConnection>> readable_clients;
-    // Check all active sender sockets if message is available
-    active_clients_map_lock_.lock();
-
-    // Remove all clients with error
-    for(auto client_entry : active_clients_map_) {
-      if (FD_ISSET(client_entry.first, &error_fd_set)) {
-        SPDLOG_ERROR(fmt::format("Found error socket_fd: {}", socket_.fd()));
-        RemoveFromActiveClients(client_entry.second);
-      }
-    }
-    for(auto client_entry : active_clients_map_) {
-      if (FD_ISSET(client_entry.first, &read_fd_set)) {
-        SPDLOG_INFO(fmt::format("Found readable socket_fd: {}", client_entry.first));
-        readable_clients.insert(client_entry.second);
-      }
-    }
-    active_clients_map_lock_.unlock();
-    for(auto client : readable_clients) {
-        RemoveFromActiveClients(client);
-        AddToHandlingClients(client);
-        this->AcceptMessage(client);
-    }
-    readable_clients.clear();
   }
   SPDLOG_INFO("Server is not on, shutting down...");
 }
 
-void TCPServer::PopulateFdSetWithConnectedClients(fd_set& fd_set) {
-  FD_ZERO(&fd_set);
+void TCPServer::PopulateSetWithConnectedClients(std::unordered_set<unsigned int>& fd_set) {
   // Add all the active sender sockets for getting messages.
   active_clients_map_lock_.lock();
   for(auto client_entry : active_clients_map_) {
-    FD_SET(client_entry.first, &fd_set);
+    fd_set.insert(client_entry.first);
   }
   active_clients_map_lock_.unlock();
+}
+
+void TCPServer::AcceptMessages() {
+    std::unordered_set<unsigned int> read_fd_set;
+    std::unordered_set<std::shared_ptr<TCPConnection>> readable_clients;
+    struct timeval select_wait_time{5,0};
+    while (is_on_) {
+        PopulateSetWithConnectedClients(read_fd_set);
+        auto select_res = tcp_util::get_readable_fds_using_select(read_fd_set, &select_wait_time);
+        if (!select_res.success_) {
+            //TODO(moghya): Handle each error type separately.
+            SPDLOG_ERROR(fmt::format("Select readable fds failed due to error: {}", select_res.error_.to_string()));
+            continue;
+        }
+
+        // extract as a method
+        active_clients_map_lock_.lock();
+        for(auto fd : select_res.result_) {
+            auto it = active_clients_map_.find(fd);
+            if (it!=active_clients_map_.end()) {
+                SPDLOG_INFO(fmt::format("Found readable socket_fd: {}", it->first));
+                readable_clients.insert(it->second);
+            }
+        }
+        active_clients_map_lock_.unlock();
+
+        for(auto client : readable_clients) {
+            RemoveFromActiveClients(client);
+            AddToHandlingClients(client);
+            AcceptMessage(client);
+        }
+
+        readable_clients.clear();
+        read_fd_set.clear();
+    }
+    SPDLOG_INFO("Server is not on, shutting down...");
 }
 
 void TCPServer::AcceptMessage(std::shared_ptr<TCPConnection> client, bool spawn_thread) {
@@ -151,11 +144,11 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
   auto client = std::make_shared<TCPConnection>();
   // Initialize sender address struct and accept new connection
   int client_socket_fd = accept(socket_.fd(),
-                                         client->address(),
-                                         client->address_length_ptr());
+                                client->address(),
+                                client->address_length_ptr());
   if (client_socket_fd < 0) {
       SPDLOG_ERROR(fmt::format("accept failed: {}", tcp_util::Error(errno).to_string()));
-    return nullptr;
+      return nullptr;
   }
   client->set_socket_fd(client_socket_fd);
   AddToActiveClients(client);
