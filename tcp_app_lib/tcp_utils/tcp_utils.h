@@ -8,7 +8,9 @@
 #include <errno.h>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <thread>
+#include <unordered_set>
 
 #include "../../third_party/spdlog/include/spdlog/spdlog.h"
 #include "message.h"
@@ -88,7 +90,7 @@ namespace tcp_util {
             return {false, err, nullptr};
         } else {
             SPDLOG_DEBUG("Read {} bytes.", read_length);
-        message->set_length(read_length);
+            message->set_length(read_length);
             message->put_data(read_length,0);
             return {true, Error(), std::move(message)};
         }
@@ -120,6 +122,36 @@ namespace tcp_util {
             t->detach();
         }
         return t;
+    }
+
+    static OperationResult<std::set<unsigned int>>
+    get_readable_fds_using_select(std::unordered_set<unsigned int>& read_fds,
+                                  struct timeval* timeout) {
+        std::set<unsigned int> readable_fds;
+
+        fd_set read_fd_set;
+        FD_ZERO(&read_fd_set);
+        for(auto fd:read_fds) {
+            FD_SET(fd, &read_fd_set);
+        }
+
+        int select_ret = select(FD_SETSIZE, &read_fd_set, NULL, NULL, timeout);
+        if (select_ret < 0) {
+            auto err = GET_SOCKET_ERROR
+            SPDLOG_ERROR(fmt::format("select failed: {}. Shutting down.",  err.to_string()));
+            return {false, err, readable_fds};
+        } else if (select_ret == 0) {
+            SPDLOG_DEBUG("Hit select timeout.");
+            return {false, Error(ErrorType::kTimeout), readable_fds};
+        }
+
+        for(auto fd : read_fds) {
+            if (FD_ISSET(fd, &read_fd_set)) {
+                SPDLOG_INFO(fmt::format("Found readable socket_fd: {}", fd));
+                readable_fds.insert(fd);
+            }
+        }
+        return {true, Error(), readable_fds};
     }
 } // tcp_util
 #endif // KEY_VALUE_STORE_TCP_UTILS_H
