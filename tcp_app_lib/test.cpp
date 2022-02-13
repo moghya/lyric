@@ -59,7 +59,7 @@ void TestTCPClientAndTCPServer() {
             auto recv_res = client.ReceiveMessage(512);
             if (recv_res.success_) {
                 test_pass_count++;
-                SPDLOG_INFO(fmt::format("Received message: {}", rec_res.result_->data()));
+                SPDLOG_INFO(fmt::format("Received message: {}", recv_res.result_->data()));
             } else {
                 SPDLOG_ERROR("Could not receive message.");
                 test_fail_count++;
