@@ -13,9 +13,12 @@ const unsigned int PORT = 8081;
 int main() {
     spdlog::set_pattern("[%l] [%n] [%A-%d-%m-%Y] [%H:%M:%S] [%z] [%t] %s:%# %v");
     auto client = std::make_shared<TCPClient>("127.0.0.1", PORT, "first");
-    if (client && client->SendMessage("Nice test")) {
-        auto message = client->ReceiveMessage(512);
-        SPDLOG_INFO(message->data_str());
+    if (client) {
+        auto send_res = client->SendMessage("Nice test");
+        if (send_res.success_) {
+            auto recv_res = client->ReceiveMessage(512);
+            SPDLOG_INFO(recv_res.result_->data_str());
+        }
     }
     return 0;
 }
