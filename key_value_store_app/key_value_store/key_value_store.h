@@ -9,6 +9,8 @@
 #include <string>
 #include <unordered_map>
 
+#include "proto/key_value_store.pb.h"
+
 class KeyValueStore {
 public:
     enum EvictionPolicy {
@@ -20,8 +22,12 @@ public:
                   EvictionPolicy eviction_policy);
     ~KeyValueStore();
 
-    void PutEntry(std::string key, std::string value);
-    std::string GetEntry(std::string key);
+    KeyValueStoreProto::Result Execute(KeyValueStoreProto::Query query);
+
+private:
+    KeyValueStoreProto::PutEntryResult  PutEntry(const KeyValueStoreProto::PutEntryArgs& args);
+    KeyValueStoreProto::GetEntryResult  GetEntry(const KeyValueStoreProto::GetEntryArgs& args);
+
 private:
     std::string name_;
     unsigned int capacity_;

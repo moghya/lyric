@@ -6,9 +6,18 @@
 #include <string>
 #include <unordered_map>
 
+#include "proto/key_value_store.pb.h"
 #include "spdlog/spdlog.h"
 
 #include "key_value_store.h"
+
+
+using KeyValueStoreProto::GetEntryArgs;
+using KeyValueStoreProto::GetEntryResult;
+using KeyValueStoreProto::PutEntryArgs;
+using KeyValueStoreProto::PutEntryResult;
+using KeyValueStoreProto::Query;
+using KeyValueStoreProto::Result;
 
 
 KeyValueStore::KeyValueStore(
@@ -21,23 +30,50 @@ KeyValueStore::~KeyValueStore() {
 
 }
 
-std::string KeyValueStore::GetEntry(std::string key) {
-    // Could improve locking here only on the key.
-    key_value_map_guard_.lock();
-    std::string value = "KeyNotFound: " + key;
-    auto it = key_value_map_.find(key);
-    if (it!=key_value_map_.end()) {
-        value = it->second;
+Result KeyValueStore::Execute(Query query) {
+    Result result;
+    result.set_operation(query.operation());
+    switch(query.operation()) {
+        case KeyValueStoreProto::GetEntry: {
+            auto res = GetEntry(query.get_entry_args());
+            result.mutable_get_entry_result()->CopyFrom(res);
+            result.set_error(res.error());
+            break;
+        }
+        case KeyValueStoreProto::PutEntry: {
+            auto res = PutEntry(query.put_entry_args());
+            result.mutable_put_entry_result()->CopyFrom(res);
+            result.set_error(res.error());
+            break;
+        }
     }
-    SPDLOG_INFO(fmt::format("GetEntry [key: {}] => [value: {}]", key, value));
-    key_value_map_guard_.unlock();
-    return value;
+    return result;
 }
 
-void KeyValueStore::PutEntry(std::string key, std::string value) {
+GetEntryResult KeyValueStore::GetEntry(const GetEntryArgs& args) {
     // Could improve locking here only on the key.
+    auto& key = args.key();
+    auto result = GetEntryResult();
     key_value_map_guard_.lock();
-    SPDLOG_INFO(fmt::format("PutEntry [key: {}] => [value: {}]", key, value));
+    auto it = key_value_map_.find(key);
+    if (it!=key_value_map_.end()) {
+        result.set_value(it->second);
+    } else {
+        result.set_error(KeyValueStoreProto::ErrorType::kKeyNotFound);
+    }
+    key_value_map_guard_.unlock();
+    return result;
+}
+
+PutEntryResult KeyValueStore::PutEntry(const PutEntryArgs& args) {
+    // Could improve locking here only on the key.
+    auto key = args.key();
+    auto value = args.value();
+    auto result = PutEntryResult();
+    result.set_key(key);
+    result.set_value(value);
+    key_value_map_guard_.lock();
     key_value_map_[key] = value;
     key_value_map_guard_.unlock();
+    return result;
 }
