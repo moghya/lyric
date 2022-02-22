@@ -9,8 +9,6 @@
 #include "tcp_connection.h"
 #include "tcp_utils.h"
 
-
-
 TCPConnection::TCPConnection() {
     address_ = (struct sockaddr*) malloc(sizeof(struct sockaddr_in));
     address_length_ = (socklen_t*) malloc(sizeof(socklen_t));
@@ -33,17 +31,20 @@ bool TCPConnection::ConnectToPeer(std::string dest_ip_address,
     hints.ai_socktype = SOCK_STREAM;
     int rc = getaddrinfo(dest_ip_address.c_str(), std::to_string(dest_port).c_str(), &hints, &result);
     if (rc != 0) {
-        SPDLOG_ERROR(fmt::format("getaddrinfo failed: {}",  tcp_util::Error(errno).to_string()));
+        auto err = GET_SOCKET_ERROR
+        SPDLOG_ERROR(fmt::format("getaddrinfo failed: {}",  err.to_string()));
     }
     struct addrinfo* rp;
     for (rp = result; rp != NULL; rp = rp->ai_next) {
         socket_fd_ = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
         if (socket_fd_ < 0) {
-            SPDLOG_ERROR(fmt::format("socket failed: {}, Continuing...",  tcp_util::Error(errno).to_string()));
+            auto err = GET_SOCKET_ERROR
+            SPDLOG_ERROR(fmt::format("socket failed: {}, Continuing...",  err.to_string()));
             continue;
         }
         if (connect(socket_fd_, rp->ai_addr, rp->ai_addrlen) < 0) {
-            SPDLOG_ERROR(fmt::format("connect failed: {}",  tcp_util::Error(errno).to_string()));
+            auto err = GET_SOCKET_ERROR
+            SPDLOG_ERROR(fmt::format("connect failed: {}",  err.to_string()));
             close(socket_fd_);
             continue;
         } else {

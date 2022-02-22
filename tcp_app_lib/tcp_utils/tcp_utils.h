@@ -22,7 +22,7 @@
              << "\t"; \
   } while(false); \
 
-#define GET_SOCKET_ERROR Error(errno, strerror(errno));
+#define GET_SOCKET_ERROR tcp_util::GetErrorFromErrorNo(errno, strerror(errno));
 
 namespace tcp_util {
     enum ACTION_ON_CONNECTION {
@@ -39,24 +39,19 @@ namespace tcp_util {
         kTimeout = 5,
     };
 
-    static ErrorType GetErrorTypeFromErrorNo(int error_no) {
-        switch(error_no) {
-            case ErrorType::kNoError:     return ErrorType::kNoError;
-            case EPIPE: return ErrorType::kBrokenPipe;
-            case EBADF: return ErrorType::kBadFileDescriptor;
-        }
-        return ErrorType::kUnknown;
-    }
 
     class Error {
         public:
-            Error(int err_no = ErrorType::kNoError, std::string err_msg = "") :
-                type_(tcp_util::GetErrorTypeFromErrorNo(err_no)),
+            Error(ErrorType err_type = ErrorType::kNoError,
+                  std::string err_msg = "") :
+                type_(err_type),
                 msg_(err_msg) {
             }
+
             ~Error() {}
+
              std::string to_string() const {
-                return "<<Err::"+std::to_string(type_)+"::"+msg_+">>";
+                return "[ type: " + std::to_string(type_) + ", msg: " + msg_ + " ]";
              }
              const tcp_util::ErrorType type() const {
                  return type_;
@@ -67,11 +62,28 @@ namespace tcp_util {
             std::string msg_;
     };
 
+
+    static ErrorType GetErrorTypeFromErrorNo(int error_no) {
+        switch(error_no) {
+            case ErrorType::kNoError:     return ErrorType::kNoError;
+            case EPIPE: return ErrorType::kBrokenPipe;
+            case EBADF: return ErrorType::kBadFileDescriptor;
+        }
+        return ErrorType::kUnknown;
+    }
+
+    static Error GetErrorFromErrorNo(int error_no, std::string msg = "") {
+        return Error(GetErrorTypeFromErrorNo(error_no), msg);
+    }
+
     template<typename T>
     struct OperationResult {
         bool success_;
         Error error_;
         T result_;
+        std::string to_string() {
+            return "[ success: " + std::to_string(success_) + " , error: " + error_.to_string() + "]";
+        }
     };
 
     static OperationResult<std::unique_ptr<Message>>
@@ -101,7 +113,7 @@ namespace tcp_util {
         SPDLOG_DEBUG(fmt::format("Sending message: {} to socket: {}", message->data_str(), socket_fd));
         // TODO(moghya) : change this to check for size returned and handle errors set if any.
         int send_length = send(socket_fd, (void *) message->data(), message->length(), MSG_NOSIGNAL /* flags */);
-        Error err(0);
+        Error err;
         bool success = true;
         if (send_length <= 0) {
             success = false;

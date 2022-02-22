@@ -147,7 +147,8 @@ std::shared_ptr<TCPConnection> TCPServer::AcceptConnection() {
                                 client->address(),
                                 client->address_length_ptr());
   if (client_socket_fd < 0) {
-      SPDLOG_ERROR(fmt::format("accept failed: {}", tcp_util::Error(errno).to_string()));
+      auto err = GET_SOCKET_ERROR
+      SPDLOG_ERROR(fmt::format("accept failed: {}", err.to_string()));
       return nullptr;
   }
   client->set_socket_fd(client_socket_fd);
