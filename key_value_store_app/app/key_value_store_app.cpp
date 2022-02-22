@@ -12,8 +12,9 @@
 #include "proto/key_value_store_app.pb.h"
 #include "spdlog/spdlog.h"
 
-using KeyValueStoreAppProto::Command;
-using KeyValueStoreAppProto::CommandType;
+using KeyValueStoreAppProto::Request;
+using KeyValueStoreAppProto::Response;
+using KeyValueStoreAppProto::RequestType;
 
 KeyValueStoreApp::KeyValueStoreApp(
     std::string name,
@@ -28,47 +29,50 @@ KeyValueStoreApp::~KeyValueStoreApp() {
 }
 
 tcp_util::ACTION_ON_CONNECTION
-KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> request) {
-  auto message = request->message();
-  auto client = request->sender();
-  SPDLOG_INFO(fmt::format("Received Message: {}", message->data_str()));
-  Command command;
-  if(!command.ParseFromString(message->data())) {
-      command.set_type(CommandType::Unknown);
-      SPDLOG_ERROR(fmt::format("Failed to parse message: {}", message->data_str()));
+KeyValueStoreApp::HandleMessage(std::shared_ptr<TCPMessage> tcp_message) {
+  auto message = tcp_message->message();
+  auto client = tcp_message->sender();
+  SPDLOG_DEBUG(fmt::format("Received Message: {}", message->data_str()));
+
+  Request request;
+  Response response;
+  response.set_error(KeyValueStoreAppProto::kNoError);
+  if(!request.ParseFromString(message->data())) {
+      request.set_type(RequestType::Unknown);
+    SPDLOG_ERROR(fmt::format("Failed to parse message: {}", message->data_str()));
+  } else {
+    SPDLOG_DEBUG(fmt::format("Received Request: {}", request.ShortDebugString()));
   }
-  SPDLOG_INFO(fmt::format("Received Command: [{}]", command.ShortDebugString()));
-  switch (command.type()) {
-    case CommandType::PutEntry: {
-      store_->PutEntry(command.key(), command.value());
-      auto response = fmt::format("[{}:{}]", command.key(), store_->GetEntry(command.key()));
-      SPDLOG_INFO("Sending: " + response);
-      client->SendMessage(response);
-      break;
+  response.set_req_type(request.type());
+
+  auto action = tcp_util::ACTION_ON_CONNECTION::KEEP_OPEN;
+  switch (request.type()) {
+    case RequestType::PutEntry:
+    case RequestType::GetEntry: {
+        const auto& result = store_->Execute(request.query());
+        response.mutable_query_result()->CopyFrom(result);
+        break;
     }
-    case CommandType::GetEntry: {
-      auto value = store_->GetEntry(command.key());
-      SPDLOG_INFO("Sending: " + value);
-      client->SendMessage(value);
-      break;
-    }
-    case CommandType::Close: {
-        client->SendMessage("closed_by-> " + Name());
-        return tcp_util::ACTION_ON_CONNECTION::CLOSE;
+    case RequestType::Close: {
+        action = tcp_util::ACTION_ON_CONNECTION::CLOSE;
+        break;
     }
     default: {
-        client->SendMessage("Invalid request.");
+        response.set_error(KeyValueStoreAppProto::kInvalidRequest);
     }
   }
-  return tcp_util::ACTION_ON_CONNECTION::KEEP_OPEN;
+  SPDLOG_DEBUG(fmt::format("Sending response: {}", response.SerializeAsString()));
+  client->SendMessage(response.SerializeAsString());
+  return action;
 }
 
 
-Command KeyValueStoreApp::ParseMessage(char *message_str) {
+Request KeyValueStoreApp::ParseMessage(char *message_str) {
+  throw "Deprecated method used";
   // Extract as a util class Tokenizer with following method
   // get_next_token, reset_iterator, get_first, get_last etc..
-  Command keyValueStoreAppCommand;
-  keyValueStoreAppCommand.set_type(CommandType::Unknown);
+  Request keyValueStoreAppCommand;
+  keyValueStoreAppCommand.set_type(RequestType::Unknown);
   std::vector<std::string> tokens;
   std::function<void(char*, const char*, std::vector<std::string>&)>
       tokenize = [] (char* text, const char* delimeter,
@@ -102,18 +106,15 @@ Command KeyValueStoreApp::ParseMessage(char *message_str) {
       while (get_next_token(temp)) {
         value += " " + temp;
       }
-      keyValueStoreAppCommand.set_type(CommandType::PutEntry);
-      keyValueStoreAppCommand.set_key(key);
-      keyValueStoreAppCommand.set_value(value);
+      keyValueStoreAppCommand.set_type(RequestType::PutEntry);
     }
   } else if (command == "get") {
     std::string key;
     if (get_next_token(key)) {
-        keyValueStoreAppCommand.set_type(CommandType::PutEntry);
-        keyValueStoreAppCommand.set_key(key);
+        keyValueStoreAppCommand.set_type(RequestType::PutEntry);
     }
   } else if (command == "close") {
-    keyValueStoreAppCommand.set_type(CommandType::Close);
+    keyValueStoreAppCommand.set_type(RequestType::Close);
   }
   return keyValueStoreAppCommand;
 }

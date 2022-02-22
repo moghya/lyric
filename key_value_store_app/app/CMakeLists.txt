@@ -2,8 +2,6 @@ cmake_minimum_required(VERSION 3.17)
 
 set(CMAKE_CXX_STANDARD 14)
 
-#target_include_directories(key_value_store_app_proto PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
-
 add_library(key_value_store_app key_value_store_app.cpp)
 target_link_libraries(key_value_store_app  key_value_store)
 target_link_libraries(key_value_store_app  key_value_store_app_proto)
