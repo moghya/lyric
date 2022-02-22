@@ -1,0 +1,52 @@
+syntax = "proto2";
+package KeyValueStoreProto;
+
+enum ErrorType {
+  kUnknown = 0;
+  kKeyNotFound = 1;
+  kInvaliKey = 2;
+  kUnsupportedValue = 3;
+  kInvalidExpiryTime = 4;
+  kNoError = 5;
+}
+
+message GetEntryArgs {
+  optional string key = 1;
+}
+
+message GetEntryResult {
+  optional string key = 1;
+  optional string value = 2;
+  required ErrorType error = 3 [default = kNoError];
+}
+
+message PutEntryArgs {
+  optional string key = 1;
+  optional string value = 2;
+  optional int64  expiry_time = 3;
+}
+
+message PutEntryResult {
+  optional string key = 1;
+  optional string value = 2;
+  required ErrorType error = 3 [default = kNoError];
+}
+
+enum OperationType {
+  Unknown = 0;
+  GetEntry = 1;
+  PutEntry = 2;
+}
+
+message Query {
+  required OperationType operation = 1;
+  optional GetEntryArgs get_entry_args = 2;
+  optional PutEntryArgs put_entry_args = 3;
+}
+
+message Result {
+  required OperationType operation = 1;
+  required ErrorType error = 2 [default = kNoError];
+  optional GetEntryResult get_entry_result = 3;
+  optional PutEntryResult put_entry_result = 4;
+}
