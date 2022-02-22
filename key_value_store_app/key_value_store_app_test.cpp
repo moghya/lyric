@@ -50,19 +50,23 @@ void TestKeyValueStoreAppAndClient() {
 
         SPDLOG_INFO(fmt::format("Performing GetKey key: [{}]", key));
         auto response = client->GetEntry(key);
-        SPDLOG_INFO(fmt::format("Did GetKey key: [{}] ~ response: [{}]", key, response));
+        SPDLOG_INFO(fmt::format("Did GetKey key: [{}] ~ response: [{}]",
+                                key, response.query_result().get_entry_result().value()));
 
         SPDLOG_INFO(fmt::format("Performing PutKey key: [{}],  value:[{}]", key, value));
         response = client->PutEntry(key, value);
-        SPDLOG_INFO(fmt::format("Did PutKey key: [{}], value:[{}] ~ response: [{}]", key, value, response));
+        SPDLOG_INFO(fmt::format("Did PutKey key: [{}], value:[{}] ~ response: [{}]", key, value,
+                                response.query_result().put_entry_result().value()));
 
         SPDLOG_INFO(fmt::format("Performing GetKey key: [{}]", key));
         response = client->GetEntry(key);
-        SPDLOG_INFO(fmt::format("Did GetKey key: [{}] ~ response: [{}]", key, response));
+        SPDLOG_INFO(fmt::format("Did GetKey key: [{}] ~ response: [{}]",
+                                key, response.query_result().get_entry_result().value()));
 
-        if (value!=response) {
+        if (value!=response.query_result().get_entry_result().value()) {
             test_fail_count++;
-            SPDLOG_ERROR(fmt::format("Response is not as expected [value!=response] ~ [{}!={}]", value, response));
+            SPDLOG_ERROR(fmt::format("Response is not as expected [value!=response] ~ [{}!={}]",
+                                     value, response.query_result().get_entry_result().value()));
         } else {
             test_pass_count++;
         }

@@ -4,11 +4,12 @@
 
 #include "../../third_party/spdlog/include/spdlog/spdlog.h"
 #include "../utils/utils.h"
-#include "proto/key_value_store_app.pb.h"
 #include "key_value_store_app_client.h"
+#include "proto/key_value_store_app.pb.h"
 
-using KeyValueStoreAppProto::Command;
-using KeyValueStoreAppProto::CommandType;
+using KeyValueStoreAppProto::Request;
+using KeyValueStoreAppProto::Response;
+using KeyValueStoreAppProto::RequestType;
 
 KeyValueStoreAppClient::KeyValueStoreAppClient(
         std::string name, std::string ipAddress,
@@ -20,43 +21,51 @@ KeyValueStoreAppClient::~KeyValueStoreAppClient() {
 
 }
 
-std::unique_ptr<Message> KeyValueStoreAppClient::Execute(std::string input_command) {
-    tcp_client_->SendMessage(input_command);
-    return std::move(tcp_client_->ReceiveMessage(utils::GetMessageBufferCapacity()).result_);
+Response KeyValueStoreAppClient::Execute(Request request) {
+    Response response;
+    auto send_res = tcp_client_->SendMessage(request.SerializeAsString());
+    if (!send_res.success_) {
+        SPDLOG_ERROR(fmt::format("Send failed due to error: {}", send_res.to_string()));
+        response.set_error(KeyValueStoreAppProto::kNetworkTransportError);
+        return response;
+    }
+
+    auto recv_res = tcp_client_->ReceiveMessage(utils::GetMessageBufferCapacity());
+    if (!recv_res.success_) {
+        response.set_error(KeyValueStoreAppProto::kNetworkTransportError);
+        SPDLOG_ERROR(fmt::format("Receive failed, recv_res: {}", recv_res.to_string()));
+    } else if(!response.ParseFromString(recv_res.result_->data_str())) {
+        response.set_error(KeyValueStoreAppProto::kInvalidRequest);
+        SPDLOG_ERROR(fmt::format("Invalid response: {}", recv_res.result_->data_str()));
+    }
+    return response;
 }
 
-std::string KeyValueStoreAppClient::GetEntry(std::string key) {
-    Command command;
-    command.set_type(CommandType::GetEntry);
-    command.set_key(key);
-    auto send_res = tcp_client_->SendMessage(command.SerializeAsString());
-    if (send_res.success_) {
-        auto recv_res = tcp_client_->ReceiveMessage(utils::GetMessageBufferCapacity());
-        if (recv_res.success_) {
-            return recv_res.result_->data_str();
-        } else {
-            SPDLOG_ERROR(fmt::format("Receive failed due to error: {}", recv_res.error_.to_string()));
-        }
-    } else {
-        SPDLOG_ERROR(fmt::format("Send failed due to error: {}", send_res.error_.to_string()));
-    }
-    return "";
+Response KeyValueStoreAppClient::GetEntry(std::string key) {
+    Request request;
+    request.set_type(RequestType::GetEntry);
+
+    auto* query = request.mutable_query();
+    query->set_operation(KeyValueStoreProto::GetEntry);
+
+    auto* args = query->mutable_get_entry_args();
+    args->set_key(key);
+
+    auto res = Execute(request);
+    return res;
 }
-std::string KeyValueStoreAppClient::PutEntry(std::string key, std::string value) {
-    Command command;
-    command.set_type(CommandType::PutEntry);
-    command.set_key(key);
-    command.set_value(value);
-    auto send_res = tcp_client_->SendMessage(command.SerializeAsString());
-    if (send_res.success_) {
-        auto recv_res = tcp_client_->ReceiveMessage(utils::GetMessageBufferCapacity());
-        if (recv_res.success_) {
-            return recv_res.result_->data_str();
-        } else {
-            SPDLOG_ERROR(fmt::format("Receive failed due to error: {}", recv_res.error_.to_string()));
-        }
-    } else {
-        SPDLOG_ERROR(fmt::format("Send failed due to error: {}", send_res.error_.to_string()));
-    }
-    return "";
+
+Response KeyValueStoreAppClient::PutEntry(std::string key, std::string value) {
+    Request request;
+    request.set_type(RequestType::PutEntry);
+
+    auto* query = request.mutable_query();
+    query->set_operation(KeyValueStoreProto::PutEntry);
+
+    auto* args = query->mutable_put_entry_args();
+    args->set_key(key);
+    args->set_value(value);
+
+    auto res = Execute(request);
+    return res;
 }

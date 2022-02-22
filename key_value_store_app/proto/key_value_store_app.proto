@@ -1,15 +1,29 @@
 syntax = "proto2";
 package KeyValueStoreAppProto;
 
-enum CommandType {
+import "key_value_store.proto";
+
+enum Error {
+  kNoError = 0;
+  kNetworkTransportError = 1;
+  kInvalidRequest = 2;
+  kInvalidResponse = 3;
+}
+
+enum RequestType {
   Unknown = 0;
   GetEntry = 1;
   PutEntry = 2;
   Close = 3;
 }
 
-message Command {
-  required CommandType type = 1;
-  optional string key = 2;
-  optional string value = 3;
+message Request {
+  required RequestType type = 1;
+  optional KeyValueStoreProto.Query query = 2;
+}
+
+message Response {
+  required Error error = 1;
+  required RequestType req_type = 2;
+  optional KeyValueStoreProto.Result query_result = 3;
 }

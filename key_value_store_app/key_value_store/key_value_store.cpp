@@ -54,6 +54,7 @@ GetEntryResult KeyValueStore::GetEntry(const GetEntryArgs& args) {
     // Could improve locking here only on the key.
     auto& key = args.key();
     auto result = GetEntryResult();
+    result.set_error(KeyValueStoreProto::ErrorType::kNoError);
     key_value_map_guard_.lock();
     auto it = key_value_map_.find(key);
     if (it!=key_value_map_.end()) {
@@ -70,6 +71,7 @@ PutEntryResult KeyValueStore::PutEntry(const PutEntryArgs& args) {
     auto key = args.key();
     auto value = args.value();
     auto result = PutEntryResult();
+    result.set_error(KeyValueStoreProto::ErrorType::kNoError);
     result.set_key(key);
     result.set_value(value);
     key_value_map_guard_.lock();

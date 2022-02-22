@@ -7,6 +7,8 @@
 
 
 #include "../../tcp_app_lib/tcp_server_app_client/tcp_server_app_client.h"
+#include "proto/key_value_store_app.pb.h"
+
 
 class KeyValueStoreAppClient : public TCPServerAppClient {
 public:
@@ -15,9 +17,10 @@ public:
                            unsigned int port,
                            unsigned int numberOfConnections);
     ~KeyValueStoreAppClient();
-    std::unique_ptr<Message> Execute(std::string input_command);
-    std::string GetEntry(std::string key);
-    std::string PutEntry(std::string key, std::string value);
+    KeyValueStoreAppProto::Response GetEntry(std::string key);
+    KeyValueStoreAppProto::Response PutEntry(std::string key, std::string value);
+private:
+    KeyValueStoreAppProto::Response Execute(KeyValueStoreAppProto::Request request);
 };
 
 
