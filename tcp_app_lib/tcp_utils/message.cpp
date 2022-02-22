@@ -58,7 +58,11 @@ void Message::set_data(const std::string& data) {
         reset_buffer(data_size);
     }
     length_ = data_size;
-    stpncpy(data_, data.c_str(), length_);
+    char* iter = data_;
+    for(auto c : data) {
+        *iter = c;
+        iter++;
+    }
 }
 
 Message::Message(Message&& message) {

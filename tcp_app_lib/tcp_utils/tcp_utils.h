@@ -82,7 +82,7 @@ namespace tcp_util {
         Error error_;
         T result_;
         std::string to_string() {
-            return "[ success: " + std::to_string(success_) + " , error: " + error_.to_string() + "]";
+            return "[ success: " + std::to_string(success_) + ", error: " + error_.to_string() + "]";
         }
     };
 
@@ -103,7 +103,6 @@ namespace tcp_util {
         } else {
             SPDLOG_DEBUG("Read {} bytes.", read_length);
             message->set_length(read_length);
-            message->put_data(read_length,0);
             return {true, Error(), std::move(message)};
         }
     }

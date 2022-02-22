@@ -73,7 +73,7 @@ void TCPServer::AcceptConnections() {
       auto select_res = tcp_util::get_readable_fds_using_select(read_fds, &select_wait_time);
       if (!select_res.success_) {
           //TODO(moghya): Handle each error type separately.
-          SPDLOG_ERROR(fmt::format("Select readable fds failed due to error: {}", select_res.error_.to_string()));
+          SPDLOG_ERROR(fmt::format("Select failed, select_res: {}", select_res.to_string()));
           continue;
       }
       AcceptConnection();
@@ -99,7 +99,7 @@ void TCPServer::AcceptMessages() {
         auto select_res = tcp_util::get_readable_fds_using_select(read_fd_set, &select_wait_time);
         if (!select_res.success_) {
             //TODO(moghya): Handle each error type separately.
-            SPDLOG_ERROR(fmt::format("Select readable fds failed due to error: {}", select_res.error_.to_string()));
+            SPDLOG_ERROR(fmt::format("Select failed, select_res: {}", select_res.to_string()));
             continue;
         }
 
